@@ -1,0 +1,2502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>恒翼能制造中心 · 智慧园区数字孪生</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#050b14;
+  font-family:"Microsoft YaHei","PingFang SC",-apple-system,"Segoe UI",sans-serif;
+  color:#c8e6f5;-webkit-font-smoothing:antialiased}
+#app{position:fixed;inset:0}
+canvas{display:block}
+
+/* ---------- atmosphere ---------- */
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:2;
+  background:radial-gradient(ellipse at 50% 42%,rgba(0,0,0,0) 40%,rgba(3,7,13,.72) 100%)}
+#scan{position:fixed;inset:0;pointer-events:none;z-index:2;opacity:.30;
+  background:repeating-linear-gradient(0deg,rgba(0,229,192,.045) 0 1px,transparent 1px 3px)}
+
+/* ---------- header ---------- */
+#hd{position:fixed;top:0;left:0;right:0;height:74px;z-index:10;pointer-events:none;
+  background:linear-gradient(180deg,rgba(4,10,18,.96) 0%,rgba(4,10,18,.72) 68%,rgba(4,10,18,0) 100%);
+  border-bottom:1px solid rgba(0,229,192,.16)}
+#hd .bar{position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,rgba(0,229,192,.85) 22%,rgba(63,169,245,.9) 78%,transparent)}
+#hd .ttl{position:absolute;left:26px;top:16px;display:flex;align-items:baseline;gap:13px}
+#hd .ttl h1{font-size:21px;font-weight:700;letter-spacing:2.6px;
+  background:linear-gradient(180deg,#eafffa,#4ad9c0);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;text-shadow:0 0 22px rgba(0,229,192,.30)}
+#hd .ttl .en{font-size:10.5px;letter-spacing:2.4px;color:rgba(120,196,224,.62);font-weight:400}
+#hd .ttl .sub{font-size:11px;color:rgba(120,196,224,.50);letter-spacing:.6px}
+#hd .kpi{position:absolute;right:26px;top:14px;display:flex;gap:10px;pointer-events:none}
+.chip{display:flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:5px;
+  background:linear-gradient(180deg,rgba(15,40,58,.92),rgba(9,26,40,.92));
+  border:1px solid rgba(0,229,192,.24);box-shadow:inset 0 1px 0 rgba(120,240,220,.10)}
+.chip .k{font-size:9.5px;color:rgba(120,196,224,.60);letter-spacing:1.1px;line-height:1.25}
+.chip .v{font-size:15px;font-weight:700;color:#5ff0d4;font-family:Consolas,monospace;line-height:1.15}
+.chip .v small{font-size:9.5px;font-weight:400;color:rgba(120,196,224,.62);margin-left:2px}
+.dot{width:6px;height:6px;border-radius:50%;background:#00e5c0;
+  box-shadow:0 0 9px #00e5c0;animation:pulse 2.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.42;transform:scale(.72)}}
+
+/* ---------- panels ---------- */
+.pn{position:fixed;z-index:9;top:88px;bottom:74px;width:294px;
+  background:linear-gradient(180deg,rgba(8,20,32,.90),rgba(6,15,25,.86));
+  border:1px solid rgba(0,229,192,.18);border-radius:6px;
+  box-shadow:0 12px 40px rgba(0,0,0,.55),inset 0 1px 0 rgba(120,240,220,.08);
+  backdrop-filter:blur(9px);display:flex;flex-direction:column;overflow:hidden}
+.pn.l{left:18px}.pn.r{right:18px;width:308px}
+.pn::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,rgba(0,229,192,0),rgba(0,229,192,.9),rgba(0,229,192,0))}
+.pn .cap{display:flex;align-items:center;gap:9px;padding:12px 15px 10px;
+  border-bottom:1px solid rgba(0,229,192,.13);flex:0 0 auto}
+.pn .cap i{width:3px;height:14px;background:linear-gradient(180deg,#00e5c0,#3fa9f5);border-radius:2px;
+  box-shadow:0 0 8px rgba(0,229,192,.7)}
+.pn .cap b{font-size:12.5px;font-weight:600;letter-spacing:1.5px;color:#d8f4ee}
+.pn .cap em{font-size:9px;font-style:normal;letter-spacing:1.3px;color:rgba(120,196,224,.45);margin-left:auto}
+.pn .body{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding:12px 13px 16px}
+.pn .body::-webkit-scrollbar{width:4px}
+.pn .body::-webkit-scrollbar-thumb{background:rgba(0,229,192,.30);border-radius:2px}
+.pn .body::-webkit-scrollbar-track{background:rgba(255,255,255,.03)}
+
+/* stats grid */
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:13px}
+.st{padding:9px 10px 8px;border-radius:5px;background:rgba(12,32,48,.72);
+  border:1px solid rgba(0,229,192,.13);position:relative;overflow:hidden}
+.st::after{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:linear-gradient(180deg,#00e5c0,#3fa9f5);opacity:.8}
+.st .k{font-size:9.5px;color:rgba(120,196,224,.62);letter-spacing:.7px;margin-bottom:3px}
+.st .v{font-size:16px;font-weight:700;color:#5ff0d4;font-family:Consolas,monospace;line-height:1}
+.st .v small{font-size:9px;font-weight:400;color:rgba(120,196,224,.55);margin-left:2px}
+
+/* section title */
+.stt{display:flex;align-items:center;gap:7px;font-size:10.5px;letter-spacing:1.4px;
+  color:rgba(120,196,224,.72);margin:14px 0 8px}
+.stt s{flex:1;height:1px;background:linear-gradient(90deg,rgba(0,229,192,.30),transparent);text-decoration:none}
+.stt:first-child{margin-top:0}
+
+/* building card */
+.bc{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:5px;margin-bottom:6px;
+  background:rgba(11,28,43,.66);border:1px solid rgba(0,229,192,.11);cursor:pointer;
+  transition:.16s ease;position:relative}
+.bc:hover{background:rgba(18,52,72,.86);border-color:rgba(0,229,192,.4);transform:translateX(2px)}
+.bc.on{background:linear-gradient(90deg,rgba(0,229,192,.20),rgba(15,48,68,.80));
+  border-color:rgba(0,229,192,.72);box-shadow:0 0 16px rgba(0,229,192,.20),inset 0 0 0 1px rgba(0,229,192,.16)}
+.bc .ix{width:26px;height:26px;flex:0 0 auto;border-radius:4px;display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:700;font-family:Consolas,monospace;
+  background:rgba(0,229,192,.14);color:#5ff0d4;border:1px solid rgba(0,229,192,.34)}
+.bc .nm{flex:1;min-width:0}
+.bc .nm b{display:block;font-size:12px;font-weight:600;color:#d8f4ee;letter-spacing:.4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bc .nm span{font-size:9.5px;color:rgba(120,196,224,.60);letter-spacing:.3px}
+.bc .hh{font-size:11px;font-family:Consolas,monospace;color:#7fd8ff;flex:0 0 auto}
+
+/* floor stack */
+.fs{margin:2px 0 10px;padding:8px 9px;border-radius:5px;background:rgba(6,18,29,.86);
+  border:1px solid rgba(63,169,245,.16)}
+.fr{display:flex;gap:8px;align-items:flex-start;padding:4px 0;border-bottom:1px dashed rgba(63,169,245,.11)}
+.fr:last-child{border-bottom:none}
+.fr .fl{flex:0 0 40px;font-size:10px;font-family:Consolas,monospace;font-weight:700;
+  color:#5ff0d4;letter-spacing:.2px;padding-top:1px}
+.fr .fn{flex:1;font-size:10.5px;color:#b6d8e8;line-height:1.35}
+.fr .fn em{display:block;font-style:normal;font-size:9px;color:rgba(120,196,224,.48);letter-spacing:.2px}
+
+/* kv list */
+.kv{display:flex;justify-content:space-between;gap:10px;padding:5px 0;
+  border-bottom:1px dashed rgba(63,169,245,.10);font-size:11px}
+.kv:last-child{border-bottom:none}
+.kv .k{color:rgba(120,196,224,.66);letter-spacing:.3px}
+.kv .v{color:#cdeaf6;font-weight:600;text-align:right;font-family:Consolas,monospace;font-size:10.5px}
+
+/* tag */
+.tg{display:inline-block;padding:2px 7px;margin:0 5px 5px 0;border-radius:3px;font-size:9.5px;
+  letter-spacing:.5px;background:rgba(63,169,245,.14);color:#8fd2f8;border:1px solid rgba(63,169,245,.30)}
+.tg.g{background:rgba(0,229,192,.14);color:#5ff0d4;border-color:rgba(0,229,192,.34)}
+.tg.y{background:rgba(255,196,0,.13);color:#ffd257;border-color:rgba(255,196,0,.32)}
+
+/* facility list */
+.fc{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;font-size:11px;
+  background:rgba(11,28,43,.54);margin-bottom:4px;border-left:2px solid rgba(0,229,192,.44)}
+.fc .ic{font-size:11px;width:14px;text-align:center;flex:0 0 auto}
+.fc .t{flex:1;color:#bcdcea}
+.fc .n{font-size:9.5px;font-family:Consolas,monospace;color:rgba(120,196,224,.58)}
+
+/* 现场实景图库 —— 3 列缩略图，点击放大 */
+#gal{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:2px 0 8px}
+#gal img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px;cursor:pointer;
+  border:1px solid rgba(63,169,245,.22);transition:.18s;display:block;background:#0a1520}
+#gal img:hover{border-color:rgba(0,229,192,.72);transform:scale(1.04)}
+
+/* 实景大图查看层 */
+#lb{position:fixed;inset:0;z-index:120;display:none;align-items:center;justify-content:center;
+  background:rgba(2,8,14,.93);backdrop-filter:blur(6px);cursor:zoom-out}
+#lb.on{display:flex}
+#lb img{max-width:86vw;max-height:84vh;border-radius:6px;
+  box-shadow:0 20px 70px rgba(0,0,0,.8);border:1px solid rgba(0,229,192,.30)}
+#lb .cap2{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);
+  font-size:11.5px;color:rgba(160,214,236,.82);letter-spacing:.8px;font-family:Consolas,monospace}
+
+/* 楼栋详情里的配套实景小图 */
+.dph{display:flex;gap:5px;margin:2px 0 9px}
+.dph img{flex:1;min-width:0;height:62px;object-fit:cover;border-radius:4px;cursor:pointer;
+  border:1px solid rgba(63,169,245,.22);transition:.18s}
+.dph img:hover{border-color:rgba(0,229,192,.72)}
+
+/* ---------- toolbar ---------- */
+#tb{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:10;
+  display:flex;gap:6px;padding:7px 9px;border-radius:7px;
+  background:linear-gradient(180deg,rgba(9,24,38,.94),rgba(6,16,27,.94));
+  border:1px solid rgba(0,229,192,.22);box-shadow:0 10px 34px rgba(0,0,0,.62)}
+.tb{display:flex;align-items:center;gap:6px;height:31px;padding:0 12px;border-radius:4px;
+  background:rgba(15,38,55,.72);border:1px solid rgba(63,169,245,.20);color:rgba(150,205,230,.78);
+  font-size:11px;letter-spacing:.5px;cursor:pointer;transition:.15s;white-space:nowrap;
+  font-family:inherit}
+.tb:hover{background:rgba(26,64,86,.9);color:#bfeaf8;border-color:rgba(0,229,192,.42)}
+.tb.on{background:linear-gradient(180deg,rgba(0,229,192,.26),rgba(0,150,135,.20));
+  color:#6ff2da;border-color:rgba(0,229,192,.66);box-shadow:0 0 13px rgba(0,229,192,.26)}
+.tb .d{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.85}
+#tb .sep{width:1px;margin:4px 3px;background:rgba(0,229,192,.18)}
+
+/* ---------- tooltip ---------- */
+#tip{position:fixed;z-index:20;pointer-events:none;display:none;padding:6px 10px;border-radius:4px;
+  background:rgba(4,16,26,.96);border:1px solid rgba(0,229,192,.5);font-size:11px;
+  color:#cdeaf6;letter-spacing:.4px;box-shadow:0 6px 22px rgba(0,0,0,.6);white-space:nowrap}
+#tip b{color:#5ff0d4;font-family:Consolas,monospace}
+
+/* ---------- 操作提示 ---------- */
+#hint{position:fixed;left:50%;transform:translateX(-50%);bottom:76px;z-index:15;pointer-events:none;
+  padding:5px 14px;border-radius:3px;background:rgba(4,16,26,.72);
+  border:1px solid rgba(0,229,192,.16);font-size:10px;letter-spacing:1px;
+  color:rgba(140,196,222,.62);white-space:nowrap}
+#hint b{color:rgba(95,240,212,.92);font-weight:600}
+
+/* ---------- loading ---------- */
+#ld{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:17px;background:#04101a;transition:opacity .5s}
+#ld .ring{width:52px;height:52px;border-radius:50%;border:2px solid rgba(0,229,192,.16);
+  border-top-color:#00e5c0;border-right-color:rgba(63,169,245,.85);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#ld .tx{font-size:12px;letter-spacing:3.2px;color:rgba(0,229,192,.82)}
+#ld .sb{font-size:9.5px;letter-spacing:1.6px;color:rgba(120,196,224,.42)}
+#err{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:60;display:none;
+  max-width:640px;padding:16px 20px;border-radius:6px;background:rgba(50,8,16,.96);
+  border:1px solid rgba(255,90,110,.6);color:#ffb3bd;font-size:12px;line-height:1.6;
+  font-family:Consolas,monospace;white-space:pre-wrap}
+@media (max-width:1280px){
+  .pn{width:250px}.pn.r{width:262px}#hd .ttl .sub{display:none}
+  .sg{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="vignette"></div>
+<div id="scan"></div>
+
+<header id="hd">
+  <div class="bar"></div>
+  <div class="ttl">
+    <h1>恒翼能制造中心</h1>
+    <span class="en">DIGITAL TWIN &nbsp;/&nbsp; SMART PARK</span>
+    <span class="sub">总平面 · 路面划线规划</span>
+  </div>
+  <div class="kpi">
+    <div class="chip"><span class="dot"></span><div><div class="k">SYSTEM</div><div class="v" style="font-size:11px">在线</div></div></div>
+    <div class="chip"><div><div class="k">用地面积</div><div class="v" id="kArea">—<small>m²</small></div></div></div>
+    <div class="chip"><div><div class="k">楼栋 / 最高</div><div class="v" id="kBld">—</div></div></div>
+    <div class="chip"><div><div class="k">LOCAL TIME</div><div class="v" id="kClk">--:--:--</div></div></div>
+  </div>
+</header>
+
+<!-- ============ left ============ -->
+<aside class="pn l">
+  <div class="cap"><i></i><b>园区概况</b><em>OVERVIEW</em></div>
+  <div class="body">
+    <div class="sg">
+      <div class="st"><div class="k">用地面积</div><div class="v" id="s1">21,114<small>m²</small></div></div>
+      <div class="st"><div class="k">建筑基底</div><div class="v" id="s2">9,395<small>m²</small></div></div>
+      <div class="st"><div class="k">计容面积</div><div class="v" id="s3">88,795<small>m²</small></div></div>
+      <div class="st"><div class="k">容积率</div><div class="v" id="s4">4.21</div></div>
+    </div>
+
+    <div class="stt">楼栋列表<s></s></div>
+    <div id="blist"></div>
+
+    <div class="stt">场地设施<s></s></div>
+    <div class="fc"><span class="ic">▲</span><span class="t">南门 / 北门 门禁道闸</span><span class="n">2</span></div>
+    <div class="fc"><span class="ic">▤</span><span class="t">设备雨棚 / 储能雨棚</span><span class="n">6</span></div>
+    <div class="fc"><span class="ic">◉</span><span class="t">地下停车场出入口</span><span class="n">2</span></div>
+    <div class="fc"><span class="ic">▦</span><span class="t">篮球场</span><span class="n">1</span></div>
+    <div class="fc"><span class="ic">▣</span><span class="t">吸烟亭</span><span class="n">1</span></div>
+    <div class="fc"><span class="ic">⚡</span><span class="t">10KV 开关站 1F</span><span class="n">5.3m</span></div>
+    <div class="fc"><span class="ic">⛽</span><span class="t">1 米宽叉车充电位</span><span class="n">1</span></div>
+
+    <div class="stt">现场实景<s></s></div>
+    <div id="gal"></div>
+  </div>
+</aside>
+
+<!-- ============ right ============ -->
+<aside class="pn r">
+  <div class="cap"><i></i><b>楼栋详情</b><em>DETAIL</em></div>
+  <div class="body">
+    <div id="dwrap">
+      <div style="padding:26px 8px;text-align:center;font-size:11px;color:rgba(120,196,224,.46);
+        letter-spacing:1px;line-height:1.9">点击左侧楼栋或场景中的建筑<br>查看楼层功能与建筑参数</div>
+    </div>
+    <div class="stt">场地要素<s></s></div>
+    <div class="kv"><span class="k">南门 South Gate</span><span class="v">临南园路</span></div>
+    <div class="kv"><span class="k">北门 North Gate</span><span class="v">临园区主路</span></div>
+    <div class="kv"><span class="k">西侧 经一路</span><span class="v">Jingyi Rd.</span></div>
+    <div class="kv"><span class="k">环形道路宽度</span><span class="v">5.0 ~ 6.0 m</span></div>
+    <div class="kv"><span class="k">场地尺寸</span><span class="v">129 × 163.7 m</span></div>
+  </div>
+</aside>
+
+<div id="tb">
+  <div class="tb on" data-l="bldgs"><span class="d"></span>楼栋</div>
+  <div class="tb on" data-l="paint"><span class="d"></span>划线</div>
+  <div class="tb on" data-l="shed"><span class="d"></span>雨棚</div>
+  <div class="tb on" data-l="props"><span class="d"></span>场地设施</div>
+  <div class="tb on" data-l="lbls"><span class="d"></span>标签</div>
+  <div class="sep"></div>
+  <div class="tb" data-v="iso">等轴视角</div>
+  <div class="tb" data-v="top">俯视</div>
+  <div class="tb" data-v="reset">重置</div>
+</div>
+
+<div id="hint"><b>左键</b> 旋转　<b>中键</b> 水平平移　<b>右键</b> 平移　<b>滚轮</b> 缩放</div>
+
+<div id="tip"></div>
+
+<div id="lb"><img alt=""><div class="cap2"></div></div>
+
+<div id="ld">
+  <div class="ring"></div>
+  <div class="tx">DIGITAL TWIN INITIALIZING</div>
+  <div class="sb">恒翼能制造中心 · 智慧园区规划</div>
+</div>
+<div id="err"></div>
+
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script src="ground_tex.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ========================================================
+   0. 常量 —— 全部尺寸取自平面图实测（PPM=16.93 px/m）
+   x: 东 +    z: 南 + （图顶 = 南门 = +z）
+   ======================================================== */
+var SITE_W = 129.0, SITE_D = 163.67;
+var SITE_X0 = -64.47, SITE_X1 = 64.53;
+var SITE_Z0 = -81.87, SITE_Z1 = 81.81;
+
+/* 四栋楼：cx/cz 世界坐标中心，w/d 平面尺寸，h 总高，fl 层数 */
+var BLD = [
+  { id:'B1', name:'1号厂房', en:'Plant No.1', cx: 25.19, cz:-14.26, w:60.48, d:70.47, h:34.6, fl:7,
+    col:0xb9c2ca, fin:'alu', fire:'耐火等级一级', cat:'丙类', use:'标准件仓 / 部装 / 总装',
+    floors:[ {f:'7F', n:'标准件仓', e:'Standard Parts Warehouse'},
+             {f:'6F', n:'标准件仓', e:'Standard Parts Warehouse'},
+             {f:'5F', n:'制造中心办公室', e:'Manufacturing Center Office'},
+             {f:'5F', n:'非标件仓', e:'Non-standard Parts Warehouse'},
+             {f:'4F', n:'部装车间', e:'Pre-assembly Workshop'},
+             {f:'3F-1F', n:'总装车间', e:'Final Assembly Workshop'} ] },
+  { id:'B2', name:'2号厂房', en:'Plant No.2', cx:-36.95, cz:-14.18, w:31.66, d:70.29, h:34.6, fl:7,
+    col:0xc3ccd4, fin:'alu', fire:'耐火等级二级', cat:'丙类', use:'线束 / 机加工 / 总装',
+    floors:[ {f:'7F', n:'线束仓', e:'Cable Warehouse'},
+             {f:'7F', n:'工程仓', e:'Warehouse for Engineering Center'},
+             {f:'6F', n:'线束车间', e:'Cable Processing Workshop'},
+             {f:'5F', n:'周转仓', e:'Transit Warehouse'},
+             {f:'5F', n:'机加工车间', e:'Machining Workshop'},
+             {f:'4F-1F', n:'总装车间', e:'Final Assembly Workshop'} ] },
+  { id:'B3', name:'3号楼', en:'Building No.3', cx:-34.11, cz: 50.03, w:44.18, d:33.79, h:52.6, fl:12,
+    col:0xaeb8c2, fin:'alu', fire:'耐火等级二级', cat:'丙类', use:'PCBA / 机箱 / 电子料',
+    floors:[ {f:'5F', n:'PCBA仓 & 机箱部件仓', e:'PCBA & Cabinet Parts Warehouse'},
+             {f:'4F', n:'机箱组装车间', e:'Cabinet Assembly Workshop'},
+             {f:'3F', n:'电子料仓库', e:'Electronic Material Warehouse'},
+             {f:'2F', n:'PCBA生产车间', e:'PCBA Production Workshop'} ] },
+  { id:'B4', name:'4号楼', en:'Building No.4', cx: 29.74, cz: 53.34, w:52.10, d:27.17, h:59.9, fl:18,
+    col:0xd6d2cb, fin:'timber', fire:'耐火等级一级', cat:'民用', use:'宿舍 / 配套',
+    floors:[ {f:'—', n:'图纸未标注楼层功能', e:'No floor program on plan'} ] }
+];
+
+/* 雨棚（青色） */
+var SHED = [
+  /* 通道中段的方形（平板）雨棚：m11384 曾按用户要求删除，
+     m11858 用户改口「中部淡青色平板的亭子，恢复」→ 已恢复。
+     弧形固定雨棚现按 m11392 在通道最前端 cz=-38.0，与这块中段平板棚 z 不重叠。 */
+  { cx:-15.59, cz:-12.02, w:10.93, d:30.42, h:4.2, n:'储能设备雨棚', rot:0 },
+  { cx: 31.39, cz: 80.04, w:48.32, d: 4.73, h:4.0, n:'电动车充电棚', rot:0 },
+  { cx:-43.27, cz: 24.51, w:18.67, d: 6.73, h:4.0, n:'设备雨棚',     rot:0 },
+  { cx:-47.55, cz: 80.04, w:18.25, d: 4.73, h:4.0, n:'储能设备雨棚', rot:0 },
+  /* m15851/m16063/m16855：2号楼旁「青色亭子后面」那块黄线上的黄色平板雨棚。
+     位置＝设备青棚(青亭,−43.27,24.51)西侧黄块中心（world x−55.84 z24.57，黄块 x−57.96..−53.72 / z22.27..26.86）。
+     定位沿革：先误放坡道入口后面 z0.50（m16063 否决）→ 再误放坡道口横黄带 x−55.44 z−4.48（m16855 否决）
+     → 本版用户从俯视候选图指认 #5（青亭后面那块），定位于此。
+     col/emis/rim/op 供 buildSheds() 走黄色专属配色，其余青棚不受影响。 */
+  { cx:-55.84, cz: 24.57, w:5.00, d:5.00, h:3.8, n:'车库入口黄色雨棚', rot:0,
+    col:0xffc400, rim:0xffe58a, emis:0x6a5000, op:0.92 }
+  /* 南北门的人行雨棚（用户口中的「青色亭子」）均已按用户要求删除，不要再加回来：
+     - 北门：{ cx:-16.72, cz:-81.00, w:14.00, d:4.96, h:3.6, n:'人行雨棚' }（m09899）
+     - 南门：{ cx:-12.61, cz: 79.98, w:10.28, d:4.96, h:3.6, n:'人行雨棚' }（m10060）
+     两者都是贴在白色门头一侧、罩在保安亭附近的青色半透明平板顶棚（带细立柱），
+     俯视时与门头/岗亭挤在一起显得杂乱。
+     注意：电动车充电棚（48m）、设备雨棚、南门西储能雨棚仍保留；通道中段方形储能雨棚（m11858 恢复）保留。 */
+];
+
+/* ========================================================
+   1. 场景 / 相机 / 渲染器
+   ======================================================== */
+var sc, cam, ren, ctrl, clock, root;
+var lay = { bldgs:true, paint:true, shed:true, props:true, lbls:true };
+var grp = {};              /* 图层容器 */
+var bMeshes = [];          /* 可拾取建筑 */
+var bData   = {};          /* id -> mesh group */
+var lblAll  = [];
+var selId   = null;
+var ray, mouse, hoverHit = null;
+var anim = null;
+
+function fail(e){
+  var el = document.getElementById('err');
+  el.style.display = 'block';
+  el.textContent = 'Failed to initialize scene:\n' + (e && e.stack ? e.stack : e);
+  var ld = document.getElementById('ld'); if (ld) ld.style.display = 'none';
+}
+
+function init(){
+  var el = document.getElementById('app');
+  var W = window.innerWidth, H = window.innerHeight;
+
+  sc = new THREE.Scene();
+  sc.background = new THREE.Color(0x050b14);
+  sc.fog = new THREE.Fog(0x061020, 420, 1500);
+
+  cam = new THREE.PerspectiveCamera(40, W / H, 0.5, 2200);
+  cam.position.set(-104, 248, 164);
+  ren = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:'high-performance' });
+  ren.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  ren.setSize(W, H);
+  ren.shadowMap.enabled = true;
+  ren.shadowMap.type = THREE.PCFSoftShadowMap;
+  ren.outputEncoding = THREE.sRGBEncoding;
+  /* 实拍照片是阴天漫射光：立面靠明暗层次读，不靠强直射光。
+     ACES 色调映射压缩高光，避免屋顶/浅色铝板过曝成一片白。 */
+  ren.toneMapping = THREE.ACESFilmicToneMapping;
+  ren.toneMappingExposure = 1.02;
+  el.appendChild(ren.domElement);
+
+  ctrl = new THREE.OrbitControls(cam, ren.domElement);
+  ctrl.enableDamping = true;
+  ctrl.dampingFactor = 0.075;
+  ctrl.rotateSpeed = 0.62;
+  ctrl.zoomSpeed = 0.86;
+  ctrl.panSpeed = 0.72;
+  ctrl.minDistance = 16;
+  ctrl.maxDistance = 620;
+  ctrl.maxPolarAngle = Math.PI / 2.06;
+  ctrl.minPolarAngle = 0.06;
+
+  /* 鼠标键位：左键旋转 / 中键水平平移 / 右键平移
+     中键原本是 DOLLY（推拉），与滚轮缩放重复；改为 PAN 后压住中键拖动
+     即可沿地平面平移。screenSpacePanning=false 让平移方向锁定在世界 Y 轴
+     的垂直面上（真正的地面平移），而不是跟随屏幕像素上下飘。 */
+  ctrl.mouseButtons = {
+    LEFT: THREE.MOUSE.ROTATE,
+    MIDDLE: THREE.MOUSE.PAN,
+    RIGHT: THREE.MOUSE.PAN
+  };
+  ctrl.screenSpacePanning = false;
+
+  /* 中键按下会触发浏览器自带的「自动滚动」光标，这里拦掉；
+     同时避免中键拖拽时选中页面文字。 */
+  ren.domElement.addEventListener('mousedown', function(e){
+    if (e.button === 1){ e.preventDefault(); ren.domElement.style.cursor = 'grabbing'; }
+  });
+  ren.domElement.addEventListener('mouseup', function(e){
+    if (e.button === 1){ ren.domElement.style.cursor = 'grab'; }
+  });
+  ren.domElement.addEventListener('auxclick', function(e){
+    if (e.button === 1) e.preventDefault();
+  });
+
+  ctrl.target.set(8.6, 4, -14.1);
+  ctrl.update();
+
+  clock = new THREE.Clock();
+  ray = new THREE.Raycaster();
+  mouse = new THREE.Vector2(-10, -10);
+
+  /* 图层容器 —— 全部挂到 root，root 做 X 轴镜像。
+     原因：用户平面图按「南上、东左」绘制（图右=西），而 three.js 是右手系，
+     直接把 px 换算结果当世界坐标会让东西反掉（3#楼跑到右上、10KV 跑到东侧）。
+     在 root 上 scale.x = -1 一次性把整幅场景镜像回来；
+     three.js 会按 matrixWorld 行列式为负自动翻转正面朝向，投影/拾取/阴影均正常。 */
+  root = new THREE.Group();
+  root.scale.x = -1;
+  sc.add(root);
+
+  ['ground','paint','bldgs','shed','props','fire','lbls'].forEach(function(k){
+    grp[k] = new THREE.Group(); root.add(grp[k]);
+  });
+
+  buildLights();
+  buildGround();
+  buildBuildings();
+  buildSheds();
+  buildCorridor();
+  buildProps();
+  buildTrees();
+  buildLabelsUI();
+  buildGalleryUI();
+
+  window.addEventListener('resize', onResize);
+  ren.domElement.addEventListener('pointermove', onMove);
+  ren.domElement.addEventListener('pointerdown', onDown);
+  ren.domElement.addEventListener('pointerleave', function(){
+    document.getElementById('tip').style.display='none';
+    mouse.set(-10,-10);
+  });
+
+  animate();
+  setTimeout(function(){
+    var ld = document.getElementById('ld');
+    if (ld) { ld.style.opacity = '0'; setTimeout(function(){ ld.style.display='none'; }, 520); }
+  }, 420);
+}
+
+/* ========================================================
+   2. 灯光
+   ======================================================== */
+function buildLights(){
+  /* 阴天漫射为主：半球光压过直射光，立面才有「上亮下暗」的自然渐变，
+     而不是被一束定向光打平成一整块白。 */
+  /* 天光改成接近中性灰蓝：实拍立面是灰铝板，天光一旦偏青，
+     整面墙会被染成青绿，跟照片对不上。 */
+  sc.add(new THREE.HemisphereLight(0xc2ccd4, 0x121820, 0.52));
+
+  var key = new THREE.DirectionalLight(0xf2f7ff, 0.62);
+  key.position.set(120, 210, 120);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  var S = 190;
+  key.shadow.camera.left = -S; key.shadow.camera.right = S;
+  key.shadow.camera.top = S;   key.shadow.camera.bottom = -S;
+  key.shadow.camera.near = 20; key.shadow.camera.far = 620;
+  key.shadow.bias = -0.0009;
+  key.shadow.normalBias = 0.9;
+  sc.add(key);
+
+  var fill = new THREE.DirectionalLight(0x6fa8d8, 0.26);
+  fill.position.set(-160, 120, -140);
+  sc.add(fill);
+
+  var rim = new THREE.DirectionalLight(0x00e5c0, 0.18);
+  rim.position.set(-60, 70, 190);
+  sc.add(rim);
+
+  sc.add(new THREE.AmbientLight(0x2a3f56, 0.34));
+}
+
+/* ========================================================
+   3. 地面 + 划线贴图
+   ======================================================== */
+function buildGround(){
+  /* 远景底盘 */
+  var far = new THREE.Mesh(
+    new THREE.PlaneGeometry(2400, 2400),
+    new THREE.MeshBasicMaterial({ color:0x040810 })
+  );
+  far.rotation.x = -Math.PI / 2;
+  far.position.y = -1.2;
+  sc.add(far);
+
+  /* 场地沥青基面（贴图之外的兜底色，中灰） */
+  var gm = new THREE.MeshStandardMaterial({
+    color:C(0x585c60), roughness:0.95, metalness:0.03
+  });
+  var base = new THREE.Mesh(new THREE.PlaneGeometry(SITE_W, SITE_D), gm);
+  base.rotation.x = -Math.PI / 2;
+  base.position.set(0, 0, 0);
+  base.receiveShadow = true;
+  grp.ground.add(base);
+
+  /* 园林外圈微光边 */
+  var edge = new THREE.LineLoop(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(SITE_X0, 0.06, SITE_Z0),
+      new THREE.Vector3(SITE_X1, 0.06, SITE_Z0),
+      new THREE.Vector3(SITE_X1, 0.06, SITE_Z1),
+      new THREE.Vector3(SITE_X0, 0.06, SITE_Z1)
+    ]),
+    new THREE.LineBasicMaterial({ color:0x00e5c0, transparent:true, opacity:0.55 })
+  );
+  grp.ground.add(edge);
+
+  /* 划线贴图：整幅平面图的黄色/白色标线烘焙成一张不透明贴图
+     要点（全部踩过坑）：
+       1) **必须用 data URI（GROUND_TEX，来自 ground_tex.js）**。
+          file:// 协议下 <img> 加载本地 PNG 会把来源标记为跨域，
+          随后 WebGL 的 texImage2D 直接静默失败（不报错，采样得到纯黑），
+          表现就是"贴图已加载、visible=true，但地面一片漆黑"。
+          data URI 属于同源，不受该限制；canvas 生成的纹理 likewise 正常。
+       2) 不能用 THREE.TextureLoader —— 默认 crossOrigin='anonymous'，
+          file:// 下被 CORS 拦截导致贴图静默失败。
+       3) 必须不透明 + 2 的幂尺寸(4096x4096)。RGBA 半透明图 + 无 mipmap 时，
+          缩小采样会让稀释像素的 RGB 渗色，1~2px 宽的标线整体糊掉甚至消失。
+       4) 不透明 POT 纹理可以正常 generateMipmaps，缩小后依然清晰。
+       5) 线宽必须按视觉需要膨胀：真实 0.15m 的标线在 25px/m 下只有 4px，
+          再做 ~4px 膨胀到 12px(≈0.48m)，缩放到总览时仍能读出环路线。
+     内容在贴图中左右对称留白：repeat/offset 用来把有效区裁出来。 */
+  var tex = new THREE.Texture();
+  tex.encoding = THREE.sRGBEncoding;
+  tex.anisotropy = Math.min(8, ren.capabilities.getMaxAnisotropy());
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = true;
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  /* **flipY 必须是 false** —— 本项目最容易搞反的一处，已用双向色块法最终确认。
+     标定方法（唯一可靠）：贴图顶部 700px 涂绿、底部 700px 涂洋红，
+     隐藏楼体后俯视截图，看两个色带落在屏幕哪一端。
+       flipY = true  → 绿(图上端=平面图南端) 落在屏幕 y≈622（下端=北端）  ✗ 南北颠倒
+       flipY = false → 绿(图上端=平面图南端) 落在屏幕 y≈165（上端=南端）  ✓ 正确
+     曾经因为"相机退化"的俯视图（相机 x/z 与 target 完全相同，OrbitControls
+     方位角退化，画面会随机翻转 180°）得出相反结论，导致南门的地面停车位跑到北门。
+     **对比 flipY 必须用偏离 target 的俯视相机**，例如 setView(8.6,318,-14.5,8.6,0,-14.1)。 */
+  tex.flipY = false;
+  tex.repeat.set(0.788086, 1);       /* 3228 / 4096 —— 有效内容宽度占比 */
+  tex.offset.set(0.105957, 0);       /* 434 / 4096  —— 左右对称留白 */
+
+  var pm = new THREE.MeshStandardMaterial({
+    map: tex, roughness:0.90, metalness:0.03,
+    side:THREE.DoubleSide, toneMapped:false
+  });
+  var paint = new THREE.Mesh(new THREE.PlaneGeometry(SITE_W, SITE_D), pm);
+  paint.rotation.x = -Math.PI / 2;
+  paint.position.set(0, 0.045, 0);
+  paint.renderOrder = 2;
+  paint.receiveShadow = true;   /* 贴图不透明，必须自己接阴影，否则地面阴影丢失 */
+  paint.visible = false;
+  grp.paint.add(paint);
+
+  var img = new Image();
+  img.onload = function(){
+    tex.image = img;
+    tex.needsUpdate = true;
+    paint.visible = true;
+  };
+  img.onerror = function(){ paint.visible = false; };
+  img.src = GROUND_TEX;    /* data URI —— 见上方要点 1 */
+}
+
+/* ========================================================
+   4. 建筑
+   ======================================================== */
+/* --------------------------------------------------------
+   幕墙纹理：一个 tile = 3.5m 宽 × 1 个标准层高
+   依据现场实拍照片提取——立面是「浅灰铝板 + 深蓝灰横向长窗
+   + 白色楼板腰线」，4号楼另有原木色竖向格栅。
+   程序化生成而非贴照片：可换色、可重复、无分辨率损失。
+   -------------------------------------------------------- */
+var _texCache = {};
+function facadeTex(kind){
+  if (_texCache[kind]) return _texCache[kind];
+
+  /* 一个 tile = 3.5m 宽 × 1 个标准层高。
+     关键：**每层只留 2 条边界线**。真实立面就是「深色长窗带 + 浅色层间板」两段，
+     画多了会在缩小后被 mipmap 平均成横条纹噪声（第一版就栽在这）。 */
+  var CW = 128, CH = 128;
+  var c = document.createElement('canvas');
+  c.width = CW; c.height = CH;
+  var x = c.getContext('2d');
+
+  var timber = (kind === 'timber');
+  /* 明度对比压到约 1.2:1。
+     三次迭代的教训：
+       ① 对比强 → 总览变斑马线
+       ② 窗带画到 38% 层高 → 显得密如灯芯绒
+       ③ **不要画 1~2px 的细线**：一个 tile 128px 映射到屏幕只有 ~35px，
+          1.5px 的"窗带上下沿"落到屏幕是 0.4px 的次像素，抗锯齿后会变成
+          一条实心暗线，整栋楼就被这些暗线切成一格格的灯芯绒。
+     正确做法：只用柔和的垂直渐变区分墙与窗，不描边。 */
+  var wallT  = timber ? '#cdc7bc' : '#c9c2b8';
+  var glass  = timber ? '#b4bcc5' : '#b2bbc4';
+  var cornice= timber ? '#d7d1c7' : '#d4cdc3';
+
+  /* 层间板（浅暖灰）占上部 */
+  x.fillStyle = wallT;
+  x.fillRect(0, 0, CW, CH);
+
+  /* 楼板腰线（白色，薄）—— 同样不描边，用渐变淡出 */
+  var cg = x.createLinearGradient(0, 0, 0, CH * 0.085);
+  cg.addColorStop(0, cornice);
+  cg.addColorStop(0.62, cornice);
+  cg.addColorStop(1, 'rgba(213,206,196,0)');
+  x.fillStyle = cg;
+  x.fillRect(0, 0, CW, CH * 0.085);
+
+  /* ---- 关键比例 ----
+     实拍立面的窗带只占层高约 24%，其余是浅色墙板。
+     窗带偏窄且位于层高中下部，靠柔和的垂直渐变过渡，不描边。 */
+  var gy0 = CH * 0.360, gy1 = CH * 0.700;
+
+  /* 深色横向长窗带 —— 上下都做柔和过渡，避免出现"硬边被 mipmap 抹成暗线" */
+  var gg = x.createLinearGradient(0, gy0, 0, gy1);
+  gg.addColorStop(0,    'rgba(186,192,199,0)');
+  gg.addColorStop(0.16, glass);
+  gg.addColorStop(0.84, glass);
+  gg.addColorStop(1,    'rgba(186,192,199,0)');
+  x.fillStyle = gg;
+  x.fillRect(0, gy0, CW, gy1 - gy0);
+
+  /* 窗带内**不画竖梃**。
+     算过一遍：128px 的 tile 在屏幕上一个只占约 13px，2px 的竖梃落到屏幕是
+     0.2px 的次像素 —— 抗锯齿把它抹成一根均匀的浅痕，整面墙就成了密条纹布。
+     竖梃这种细节只在近景有意义；总览视角应当靠体量、材质明度和轮廓线读建筑。 */
+
+  /* 原木色竖肋（4号楼）—— 同理，只在层间板范围画宽色块，不画细线 */
+
+  /* 原木色竖肋（4号楼）—— 疏朗的暖色，贴在层间板上 */
+  if (timber){
+    var finW = CW / 3;
+    for (var f = 0; f < 3; f++){
+      var fxx = f * finW + finW * 0.34;
+      x.fillStyle = 'rgba(163,124,80,0.50)';
+      x.fillRect(fxx, CH * 0.060, finW * 0.26, CH * 0.290);
+    }
+  }
+
+  var t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = Math.min(8, ren.capabilities.getMaxAnisotropy());
+  _texCache[kind] = t;
+  return t;
+}
+
+/* 取一份可独立设 repeat 的纹理副本（共享 image，仅 UV 参数不同） */
+function tiledTex(kind, rx, ry){
+  var t = facadeTex(kind).clone();
+  t.needsUpdate = true;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx, ry);
+  t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = Math.min(8, ren.capabilities.getMaxAnisotropy());
+  return t;
+}
+
+/* three.js r128 的 material.color 被当成**线性**空间值参与光照，
+   而 outputEncoding=sRGBEncoding 会在最后再做一次线性→sRGB 编码。
+   直接把 0x262c33（sRGB 里的深灰）塞进去，输出就会被提亮成中灰。
+   凡是想得到"肉眼看到 hex 就是这个颜色"，都要先 convertSRGBToLinear。 */
+function C(hex){ return new THREE.Color(hex).convertSRGBToLinear(); }
+
+function buildBuildings(){
+  /* 屋顶设备的位置必须稳定：光伏板要按 obst 避让排布，
+     若每次刷新都重新 Math.random()，板阵会跟着设备一起跳，截图没法比对。
+     用确定性伪随机种子固定下来。 */
+  var rr = mulberry32(20261110);
+  BLD.forEach(function(o, i){
+    var g = new THREE.Group();
+    g.position.set(o.cx, 0, o.cz);
+    g.userData = o;
+
+    /* ---- 立面：几何窗带，不用贴图 ----
+       踩过的坑：给 Box 贴一张 128px 的幕墙纹理、repeat 到 20×7 之后，
+       总览视角出现密集的"灯芯绒/点阵"条纹。逐一排除后（关阴影无效、
+       删细线无效、改对比无效），最后把 map 置空条纹立刻消失 —— 决定性证据。
+       根因是纹理采样混叠：128px 的 tile 缩到屏幕上只占约 13px，
+       软渲染下 mipmap 选级失效，整幅贴图被点采样成规则点阵。
+       结论：这类"每层一条横向长窗"的立面，用**真实几何**做窗带最稳：
+       无采样问题、无次像素细线，边缘交给几何抗锯齿。 */
+
+    var timber = (o.fin === 'timber');
+    /* 明度关系对齐实拍：墙 0xc4c9ce / 窗 0x9ba5af，对比约 1.3:1。
+       此前的 0x6d7883 在 ACES 下压到接近纯黑（实测亮度 20/255），
+       于是每层都变成"一道黑线 + 一道白墙"，远看就是百叶。 */
+    var wallC  = timber ? 0xc9beac : 0xc4c9ce;
+    var glassC = timber ? 0x93a0aa : 0x9ba5af;
+
+    var body = new THREE.Mesh(
+      new THREE.BoxGeometry(o.w, o.h, o.d),
+      new THREE.MeshStandardMaterial({ color:C(wallC), roughness:0.80, metalness:0.10 })
+    );
+    body.position.y = o.h / 2;
+    body.castShadow = true; body.receiveShadow = true;
+    body.userData = o;
+    g.add(body);
+
+    /* 每层一条横向长窗：高 = 层高 × 0.40，位于层高中下部。
+       —— 两个致命细节都在这里：
+       ① 玻璃不能高金属度：MeshStandardMaterial 的 metalness 高又**没有 envMap**
+          时，反射项无处可采样，直接渲染成纯黑，整栋楼就成了黑白百叶。
+          改成低金属度 + 中粗糙度 + 一点自发光，才像"略深于墙的玻璃"。
+       ② 窗带只出挑 0.06m：出挑多了，每条的上下两个侧面都各自受光，
+          一层层叠起来会产生强烈的机械百叶感。 */
+    /* 每层一条横向长窗 —— 但楼层多的高层必须**隔层合并**：
+       18 层的楼如果真画 18 条窗带，每层间距只有 3.3m，缩到总览就是一片密纹布。
+       实拍里高层塔楼本来就是"两层层高一条长窗"的节奏，所以按 2 层一组。
+       同时按建筑高度动态取：
+         step  ≤ 5m  → 每 2 层一条（厂房 7F / 塔楼 12F、18F）
+         再高的层高则 1 层一条 */
+    var step  = o.h / o.fl;
+    var grpN  = (step < 5.6) ? 2 : 1;          /* 每几条窗带算一"层组" */
+    var bandH = Math.max(0.55, step * grpN * 0.30);
+    var glassMat = new THREE.MeshStandardMaterial({
+      color:C(glassC), roughness:0.38, metalness:0.06,
+      emissive:C(0x9ba5af), emissiveIntensity:0.16
+    });
+    for (var bk = 0; bk * grpN < o.fl; bk++){
+      var bandY = bk * step * grpN + step * grpN * 0.50;
+      if (bandY > o.h - 0.6) break;
+      /* 出挑只有 0.04m —— 关键。
+         之前出挑 0.10~0.20m 时，窗带盒体的**上、下两个侧面**各是一块
+         水平朝上的平面，被天光照得比立面亮得多，于是每一条窗带都会
+         渲染成"一亮一暗"两条线，整栋楼看起来像百叶。
+         把出挑压到 0.04m 后这两个侧面只有 4cm 宽，屏幕上不足 1 像素，
+         视觉上就只剩下一条横向长窗。 */
+      var band = new THREE.Mesh(
+        new THREE.BoxGeometry(o.w + 0.04, bandH, o.d + 0.04), glassMat
+      );
+      band.position.y = bandY;
+      band.userData = o;
+      band.castShadow = false;
+      g.add(band);
+    }
+
+    /* 女儿墙 —— 必须是「四条墙围成的环」，不能用一个包住整栋楼的实心盒：
+       盒体的顶面是一整块楼板大小的平面，俯视时会把整个屋顶盖成一块白板。
+       照片里屋顶是灰色屋面 + 白色压顶，所以压顶窄条单独做。 */
+    var parMat  = new THREE.MeshStandardMaterial({ color:C(0xb9bfc5), roughness:0.72, metalness:0.16 });
+    var parH = 1.05, parT = 0.5;
+    var parW = o.w + 0.9, parD = o.d + 0.9;
+    [
+      [parW, parT, 0,  (parD - parT) / 2],   /* 北 */
+      [parW, parT, 0, -(parD - parT) / 2],   /* 南 */
+      [parT, parD,  (parW - parT) / 2, 0],   /* 东 */
+      [parT, parD, -(parW - parT) / 2, 0]    /* 西 */
+    ].forEach(function(q){
+      var pw = new THREE.Mesh(new THREE.BoxGeometry(q[0], parH, q[1]), parMat);
+      pw.position.set(q[2], o.h + parH / 2, q[3]);
+      pw.castShadow = true; pw.userData = o;
+      g.add(pw);
+    });
+
+    /* 屋顶机房层（照片中屋顶有凸起的电梯机房/楼梯间） */
+    var pentW = Math.min(o.w * 0.20, 9), pentD = Math.min(o.d * 0.22, 9);
+    var pent = new THREE.Mesh(
+      new THREE.BoxGeometry(pentW, 3.0, pentD),
+      new THREE.MeshStandardMaterial({ color:C(0x9fa7ae), roughness:0.76, metalness:0.16 })
+    );
+    pent.position.set(
+      (i % 2 ? 1 : -1) * (o.w * 0.22),
+      o.h + 1.5,
+      (i % 2 ? -1 : 1) * (o.d * 0.20)
+    );
+    pent.castShadow = true; pent.userData = o;
+    g.add(pent);
+
+    /* 屋面板 —— 实拍屋面是深灰沥青/混凝土，绝不能是浅色：
+       朝上的面会被 HemisphereLight 的天光全额照亮，基色稍浅就会在俯视时炸成一片白。 */
+    var roof = new THREE.Mesh(
+      new THREE.BoxGeometry(o.w + 0.6, 0.28, o.d + 0.6),
+      new THREE.MeshStandardMaterial({ color:C(0x4a5058), roughness:0.96, metalness:0.06 })
+    );
+    roof.position.y = o.h + 0.14;
+    roof.userData = o;
+    g.add(roof);
+
+    /* 屋顶设备（空调机组）—— 位置记进 obst，后面排布光伏板时要避让 */
+    var obst = [{ x: pent.position.x, z: pent.position.z, w: pentW + 1.6, d: pentD + 1.6 }];
+    var acN = Math.max(2, Math.round(o.w * o.d / 620));
+    for (var a = 0; a < acN; a++){
+      var aw = 2.4 + rr() * 2.0, ad = 2.0 + rr() * 1.6;
+      var ac = new THREE.Mesh(
+        new THREE.BoxGeometry(aw, 1.1, ad),
+        new THREE.MeshStandardMaterial({ color:0x9aa4ad, roughness:0.78, metalness:0.28 })
+      );
+      var acx = (rr() - 0.5) * (o.w - aw - 4);
+      var acz = (rr() - 0.5) * (o.d - ad - 4);
+      ac.position.set(acx, o.h + 1.5, acz);
+      ac.userData = o;
+      g.add(ac);
+      obst.push({ x: acx, z: acz, w: aw + 1.0, d: ad + 1.0 });
+    }
+
+    /* 屋面分格缝 —— 大片平屋面容易糊成一块，加细缝读得出进深 */
+    var seamMat = new THREE.MeshBasicMaterial({ color:0x2b3238, transparent:true, opacity:0.60 });
+    for (var sm = 1; sm < 5; sm++){
+      var seam = new THREE.Mesh(new THREE.BoxGeometry(o.w - 1.6, 0.02, 0.13), seamMat);
+      seam.position.set(0, o.h + 0.30, -o.d / 2 + sm * o.d / 5);
+      seam.userData = o;
+      g.add(seam);
+    }
+
+    /* ---- 屋面光伏阵列 ----
+       规划意图：四栋厂房屋顶整体铺满光伏，承担园区自发自用。
+       做法是**实例化排布**而不是画一张蓝黑色的屋顶贴图：
+       光伏板最关键的视觉特征是"一块块带缝的板 + 阵列的检修通道"，
+       一旦烘成纯色贴图，俯视就退化成一块深蓝屋顶，看不出是光伏。
+       每块板 2.2 × 1.1 m（行业常见 550W 组件尺寸），东西向按 2.4 m 排距、
+       南北向按 1.5 m 行距（留 0.4 m 通风检修缝），每 8 行让出一条 1.2 m 主通道。
+       屋面机房、空调机组等凸起物从 obst 里避让，板子不压在设备上。
+       性能：全部用 InstancedMesh，几千块板只增加一次 draw call。 */
+    var pvW = 2.2, pvD = 1.1, pvGapX = 0.2, pvGapZ = 0.4;
+    var pvPitchX = pvW + pvGapX, pvPitchZ = pvD + pvGapZ;
+    var mgn = 2.6;                       /* 距女儿墙内侧的检修边距 */
+    var x0 = -o.w / 2 + mgn, z0 = -o.d / 2 + mgn;
+    var x1 = o.w / 2 - mgn, z1 = o.d / 2 - mgn;
+
+    function blocked(px, pz){
+      for (var k = 0; k < obst.length; k++){
+        var q = obst[k];
+        if (Math.abs(px - q.x) < (q.w + pvW) / 2 &&
+            Math.abs(pz - q.z) < (q.d + pvD) / 2) return true;
+      }
+      return false;
+    }
+
+    var mats = [];
+    var dummy = new THREE.Object3D();
+    var row = 0;
+    for (var pz2 = z0 + pvD / 2; pz2 <= z1; pz2 += pvPitchZ, row++){
+      if (row % 8 === 7) continue;       /* 每 8 行一条主检修通道 */
+      for (var px2 = x0 + pvW / 2; px2 <= x1; px2 += pvPitchX){
+        if (blocked(px2, pz2)) continue;
+        dummy.position.set(px2, o.h + 0.66, pz2);
+        /* 板面朝南（+z）倾斜 12°，是低纬度地区最优倾角的近似；
+           倾斜同时让每块板的受光面与屋面拉开明暗，阵列才有立体感。 */
+        dummy.rotation.set(0.21, 0, 0);
+        dummy.updateMatrix();
+        mats.push(dummy.matrix.clone());
+      }
+    }
+
+    if (mats.length){
+      var pvMat = new THREE.MeshStandardMaterial({
+        /* 光伏板是深蓝黑，但**不能纯黑**：无 envMap 时纯黑会把阵列拍成一块黑洞，
+           反而看不出板缝。给一点蓝色自发光，读起来才是"蓝色玻璃" */
+        color: C(0x1d2c48), roughness: 0.22, metalness: 0.55,
+        emissive: C(0x123055), emissiveIntensity: 0.34
+      });
+      var pv = new THREE.InstancedMesh(new THREE.BoxGeometry(pvW, 0.055, pvD), pvMat, mats.length);
+      for (var mi = 0; mi < mats.length; mi++) pv.setMatrixAt(mi, mats[mi]);
+      pv.instanceMatrix.needsUpdate = true;
+      pv.castShadow = false;             /* 几千个实例开投影会糊成一片噪点 */
+      pv.receiveShadow = false;
+      pv.userData = o;
+      g.add(pv);
+    }
+    o.pvCount = mats.length;
+
+    /* 主入口雨棚已按用户要求删除（m09058 「这里的雨棚删除」）。
+       原本按实拍补了一组白色铝板雨棚 + 两根钢立柱，贴在每栋楼南侧外墙 2m 处；
+       但平面图上并没有这些构件，且它们与地下车库坡道、篮球场、门闸挤在一起，
+       视觉上喧宾夺主。删除后建筑外围只剩红褐色人行道与立面本体。
+       注意：不要恢复这段，也不要改成"只在某栋楼保留"——用户的意思是全删。 */
+
+    /* 屋顶发光 marker */
+    var mk = new THREE.Mesh(
+      new THREE.SphereGeometry(0.62, 12, 12),
+      new THREE.MeshBasicMaterial({ color:0x5ff0d4, toneMapped:false })
+    );
+    mk.position.y = o.h + 2.4;
+    g.add(mk);
+    g.userData.marker = mk;
+
+    /* 名称标签 */
+    var lw = Math.max(13, Math.min(Math.max(o.w * 0.50, o.h * 0.62), 30));
+    var lbl = mkLbl(o.name, '#5ff0d4');
+    lbl.position.set(0, o.h + Math.max(5.2, o.h * 0.13), 0);
+    lbl.scale.set(lw, lw / 4.57, 1);
+    lbl.userData.baseW = lw;
+    lbl.userData.isLbl = true;
+    lblAll.push(lbl);
+    g.add(lbl);
+
+    grp.bldgs.add(g);
+    bMeshes.push(body);
+    bData[o.id] = g;
+  });
+}
+
+/* ========================================================
+   5. 雨棚
+   ======================================================== */
+function buildSheds(){
+  SHED.forEach(function(s){
+    var g = new THREE.Group();
+    g.position.set(s.cx, 0, s.cz);
+
+    /* 顶棚 —— 平面图用青色高亮标注雨棚，保留这个"图层语义色"，
+       但降低饱和度与自发光：原值在深色场景里过曝成荧光板，像贴纸。 */
+    /* m15851：带 col 字段的项（黄色雨棚）用其专属配色，其余仍走原青色。 */
+    var _isTint = (s.col !== undefined);
+    var roofMat = new THREE.MeshStandardMaterial({
+      color:C(_isTint ? s.col : 0x5fc9c0),
+      emissive:(_isTint ? (s.emis !== undefined ? s.emis : 0x3a2b00) : 0x0a4a47),
+      emissiveIntensity:_isTint ? 0.45 : 0.30,
+      roughness:0.42, metalness:0.30, transparent:true,
+      opacity:(_isTint ? (s.op !== undefined ? s.op : 0.92) : 0.70)
+    });
+    var roof = new THREE.Mesh(new THREE.BoxGeometry(s.w, 0.2, s.d), roofMat);
+    roof.position.y = s.h;
+    roof.castShadow = true;
+    g.add(roof);
+
+    /* 收边 */
+    var rim = new THREE.Mesh(
+      new THREE.BoxGeometry(s.w + 0.4, 0.12, s.d + 0.4),
+      new THREE.MeshBasicMaterial({
+        color:(_isTint && s.rim !== undefined ? s.rim : 0x8fe0d8),
+        toneMapped:false, transparent:true, opacity:_isTint ? 0.75 : 0.55
+      })
+    );
+    rim.position.y = s.h + 0.14;
+    g.add(rim);
+
+    /* 立柱 */
+    var n = Math.max(2, Math.round(Math.max(s.w, s.d) / 6.5));
+    var along = s.w >= s.d;
+    var colMat = new THREE.MeshStandardMaterial({ color:C(0xbfc6cb), roughness:0.55, metalness:0.45 });
+    for (var i = 0; i <= n; i++){
+      var t = n === 0 ? 0.5 : i / n;
+      var px = along ? (t - 0.5) * s.w * 0.94 : -s.w / 2 + 0.32;
+      var pz = along ? -s.d / 2 + 0.32 : (t - 0.5) * s.d * 0.94;
+      var col = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, s.h, 8), colMat);
+      col.position.set(px, s.h / 2, pz);
+      g.add(col);
+      if (!along || s.d > 4){
+        var col2 = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, s.h, 8), colMat);
+        col2.position.set(along ? px : s.w / 2 - 0.32, s.h / 2, along ? s.d / 2 - 0.32 : pz);
+        g.add(col2);
+      }
+    }
+    grp.shed.add(g);
+  });
+}
+
+/* ========================================================
+   5b. 1#/2# 楼之间：连廊 + 弧形固定雨棚（m11174 按实拍补建，m11392 定案）
+   用户 2026-11-12（m11384）先删掉通道中段那块平板「方形雨棚」（原青色 SHED[0]）；
+   随后（m11392）又指出「弧形雨棚位置不对，它要在前面，然后前面的矮的方型雨棚不要」：
+     - 删掉通道最前端那座低矮的分段方型雨棚（原「移动/伸缩雨棚」，檐高 4.3m，z=-38）；
+     - 弧形固定雨棚从 cz=-12.02 移到它的位置 cz=-38.0（通道最前端）；
+     - 高处连廊（z=+14）不动。最终通道里只剩「前端弧形雨棚 + 后端连廊」。
+   通道局部 x：B1 西边 -5.05、B2 东边 -21.12，中心 CX=-13.085，宽 16.07m
+   ======================================================== */
+function corridorSignTex(w, h, cn, en){
+  /* m18273: canvas ratio follows the plate ratio so glyphs are not stretched */
+  var CW = 1600, CH = Math.max(96, Math.round(CW * h / w));
+  var c = document.createElement('canvas');
+  c.width = CW; c.height = CH;
+  var x = c.getContext('2d');
+  x.fillStyle = '#123f8e';
+  x.fillRect(0, 0, CW, CH);
+  x.strokeStyle = '#6fa0e8'; x.lineWidth = Math.max(3, Math.round(CH * 0.03));
+  x.strokeRect(8, 8, CW - 16, CH - 16);
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillStyle = '#ffffff';
+  var f1 = Math.round(CH * 0.42), f2 = Math.round(CH * 0.20);
+  x.font = 'bold ' + f1 + 'px "Microsoft YaHei","PingFang SC",sans-serif';
+  x.fillText(cn, CW / 2, CH * 0.38, CW - 40);
+  x.font = 'bold ' + f2 + 'px Arial,sans-serif';
+  x.fillText(en, CW / 2, CH * 0.72, CW - 40);
+  var t = new THREE.CanvasTexture(c);
+  t.minFilter = THREE.LinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = 8;
+  /* root.scale.x = -1 mirrors geometry; flip U once so text still reads L->R */
+  t.wrapS = THREE.RepeatWrapping;
+  t.repeat.x = -1; t.offset.x = 1;
+  return t;
+}
+function corridorSign(w, h, cn, en){
+  var t = corridorSignTex(w, h, cn, en);
+  var m = new THREE.MeshBasicMaterial({ map:t, side:THREE.DoubleSide, toneMapped:false });
+  var p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
+  p.userData.isCorridorSign = true;
+  return p;
+}
+/* m18273: curved banner: N strips follow the parabolic arch, full frame width,
+   each strip maps to its own slice of one continuous texture (no stretch). */
+function corridorSignArc(W, h, cn, en, Y0, RISE, N, zpos, yoff){
+  var t = corridorSignTex(W, h, cn, en);
+  var m = new THREE.MeshBasicMaterial({ map:t, side:THREE.DoubleSide, toneMapped:false });
+  var g = new THREE.Group();
+  g.name = 'corridor_sign_arc';
+  /* m18786: z offset lives on the GROUP, not on each strip.  Previously
+     strips were placed at zpos and the front group got rotation.y=PI,
+     which flipped every strip to the opposite side -> both banners
+     stacked on the back face and the front face had no text. */
+  g.position.z = zpos;
+  var seg = W / N;
+  for (var i = 0; i < N; i++){
+    var xc = -W / 2 + (i + 0.5) * seg;
+    var y = Y0 + RISE * (1 - Math.pow(xc / (W / 2), 2));
+    var tilt = Math.atan(-2 * RISE * xc / Math.pow(W / 2, 2));
+    var geo = new THREE.PlaneGeometry(seg + 0.015, h);
+    var uv = geo.attributes.uv;
+    for (var j = 0; j < uv.count; j++){
+      uv.setX(j, (i + uv.getX(j)) / N);
+    }
+    uv.needsUpdate = true;
+    var mesh = new THREE.Mesh(geo, m);
+    mesh.position.set(xc, y + yoff, 0);  /* m18786: local z=0; group carries zpos */
+    mesh.rotation.z = tilt;
+    mesh.userData.isCorridorSign = true;
+    g.add(mesh);
+  }
+  return g;
+}
+
+function buildCorridor(){
+  var CX = -13.085;
+  var rootC = new THREE.Group();
+  rootC.name = 'corridor_m11174';
+  grp.props.add(rootC);
+
+  var blue = new THREE.MeshStandardMaterial({ color:C(0x123f8e), roughness:0.52, metalness:0.18 });
+  var blueLit = new THREE.MeshStandardMaterial({ color:C(0x2f6fd0), roughness:0.45, metalness:0.20,
+    emissive:0x0c2a5e, emissiveIntensity:0.35 });
+  var silver = new THREE.MeshStandardMaterial({ color:C(0xc3ccd3), roughness:0.38, metalness:0.78 });
+  var steel = new THREE.MeshStandardMaterial({ color:C(0x9aa4ab), roughness:0.50, metalness:0.65 });
+
+  /* ---------- A. 高处连廊（深蓝长方体 + 银色收边 + 两面蓝底白字标语） ---------- */
+  (function(){
+    var g = new THREE.Group();
+    g.name = 'corridor_skybridge';
+    g.position.set(CX, 11.0, 14.0);
+    var body = new THREE.Mesh(new THREE.BoxGeometry(16.0, 2.2, 3.0), blue);
+    body.castShadow = true;
+    g.add(body);
+    [-1, 1].forEach(function(s){
+      var trim = new THREE.Mesh(new THREE.BoxGeometry(16.2, 0.16, 3.14), silver);
+      trim.position.y = s * 1.12;
+      g.add(trim);
+      var bracket = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.42, 3.2), steel);
+      bracket.position.set(s * 8.35, -1.25, 0);
+      g.add(bracket);
+      var sign = corridorSign(13.2, 1.55,
+        '少计较 · 多担当 · 艰苦奋斗',
+        'LESS COMPLAINTS, EMBRACE RESPONSIBILITY, STRIVE WITH DEDICATION');
+      sign.position.set(0, 0, s * 1.52);
+      if (s === -1) sign.rotation.y = Math.PI;
+      g.add(sign);
+    });
+    rootC.add(g);
+  })();
+
+  /* ---------- B. 弧形固定雨棚（银色抛物面顶板 + 蓝拱形收边 + 钢柱） ---------- */
+  (function(){
+    var g = new THREE.Group();
+    g.name = 'corridor_arched_canopy';
+    // m11934: move to the south end; front edge (z = -46 - L/2 = -49.5)
+    // sits flush on the user's red line / the two buildings' south facade.
+    g.position.set(CX, 0, -46.0);
+    var W = 16.0, L = 7.0, Y0 = 6.4, RISE = 1.7, N = 9;
+    function arcY(x){ return Y0 + RISE * (1 - Math.pow(x / (W / 2), 2)); }
+    function arcSlope(x){ return -2 * RISE * x / Math.pow(W / 2, 2); }
+    var seg = W / N;
+    for (var i = 0; i < N; i++){
+      var xc = -W / 2 + (i + 0.5) * seg;
+      var y = arcY(xc);
+      var tilt = Math.atan(arcSlope(xc));
+      var panel = new THREE.Mesh(new THREE.BoxGeometry(seg + 0.06, 0.09, L), silver);
+      panel.position.set(xc, y, 0);
+      panel.rotation.z = tilt;
+      panel.castShadow = true;
+      g.add(panel);
+      [-1, 1].forEach(function(s){
+        var fas = new THREE.Mesh(new THREE.BoxGeometry(seg + 0.06, 0.34, 0.14), blueLit);
+        fas.position.set(xc, y + 0.02, s * (L / 2 + 0.02));
+        fas.rotation.z = tilt;
+        g.add(fas);
+      });
+    }
+    [-5.6, -2.8, 0, 2.8, 5.6].forEach(function(x){
+      var beam = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.16, L + 0.1), steel);
+      beam.position.set(x, arcY(x) - 0.14, 0);
+      g.add(beam);
+    });
+    [-1, 1].forEach(function(sx){
+      [-1, 1].forEach(function(sz){
+        var px = sx * (W / 2 - 0.55);
+        var h = arcY(px);
+        var col = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, h, 8), silver);
+        col.position.set(px, h / 2, sz * (L / 2 - 0.45));
+        col.castShadow = true;
+        g.add(col);
+      });
+    });
+    /* m18273: arc banner spans full frame W and follows the parabola */
+    [-1, 1].forEach(function(s){
+      var banner = corridorSignArc(W, 1.05,
+        '让智造更高效 · 能源更安全',
+        'SMARTER MANUFACTURING, SMARTER ENERGY',
+        Y0, RISE, 16, s * (L / 2 + 0.16), -0.55);
+      if (s === -1) banner.rotation.y = Math.PI;
+      g.add(banner);
+    });    rootC.add(g);
+  })();
+
+}
+
+/* ========================================================
+   6. 场地设施
+   ======================================================== */
+function buildProps(){
+  /* --- 建筑周边人行道已按用户要求删除（m09340「将4个厂房周围的褐色矩形去掉」）---
+     原先照实拍给每栋楼沿轮廓铺了一圈 2.6m 宽的红褐色砖带（C(0x8a5a48)，
+     四块 BoxGeometry 围成环）。俯视时这四条边就是四个醒目的褐色矩形边框，
+     与场地的中性灰沥青冲突，而且平面图上并没有这条人行道。
+     删除后建筑直接落在沥青路面上，与测绘平面图一致。
+     注意：不要再加回来。楼栋详情面板里的图库照片说明还提到人行道，
+     那是实景照片本身的描述，与三维模型无关，保留即可。 */
+
+  /* --- 篮球场 --- */
+  (function(){
+    var cx = 38.07, cz = 30.54, w = 24.57, d = 14.18;
+    var g = new THREE.Group();
+    g.position.set(cx, 0, cz);
+
+    var court = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, d),
+      new THREE.MeshStandardMaterial({ map: courtTex(), roughness:0.86, metalness:0.05 })
+    );
+    court.rotation.x = -Math.PI / 2;
+    court.position.y = 0.07;
+    court.receiveShadow = true;
+    g.add(court);
+
+    /* 篮架 */
+    [1, -1].forEach(function(s){
+      var pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.16, 0.16, 4.0, 10),
+        new THREE.MeshStandardMaterial({ color:0x9fb4c4, roughness:0.4, metalness:0.7 })
+      );
+      pole.position.set(s * (w / 2 + 0.9), 2.0, 0);
+      pole.castShadow = true;
+      g.add(pole);
+
+      var bd = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 1.05, 1.8),
+        new THREE.MeshStandardMaterial({ color:0xdff3ff, transparent:true, opacity:0.86,
+          roughness:0.2, metalness:0.2, emissive:0x0e3d52, emissiveIntensity:0.4 })
+      );
+      bd.position.set(s * (w / 2 + 0.34), 3.42, 0);
+      g.add(bd);
+
+      var ring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.34, 0.045, 8, 22),
+        new THREE.MeshStandardMaterial({ color:0xff8a3d, emissive:0x8a3200, emissiveIntensity:0.9 })
+      );
+      ring.position.set(s * (w / 2 - 0.18), 3.05, 0);
+      ring.rotation.x = Math.PI / 2;
+      g.add(ring);
+    });
+    grp.props.add(g);
+  })();
+
+  /* --- 吸烟亭 --- */
+  (function(){
+    var g = new THREE.Group();
+    g.position.set(13.41, 0, 23.63);
+    var base = new THREE.Mesh(
+      new THREE.BoxGeometry(9.51, 0.25, 3.07),
+      new THREE.MeshStandardMaterial({ color:0x8a7440, roughness:0.7 })
+    );
+    base.position.y = 0.13; g.add(base);
+
+    var postMat = new THREE.MeshStandardMaterial({ color:0xb99a4e, roughness:0.55, metalness:0.4 });
+    [[-4.3, -1.2], [4.3, -1.2], [-4.3, 1.2], [4.3, 1.2]].forEach(function(p){
+      var c = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 2.7, 8), postMat);
+      c.position.set(p[0], 1.48, p[1]);
+      g.add(c);
+    });
+    var rf = new THREE.Mesh(
+      new THREE.BoxGeometry(9.9, 0.18, 3.5),
+      new THREE.MeshStandardMaterial({ color:0xffc400, emissive:0x6a5000, emissiveIntensity:0.5,
+        roughness:0.4, metalness:0.35 })
+    );
+    rf.position.y = 2.86; rf.castShadow = true; g.add(rf);
+    grp.props.add(g);
+  })();
+
+  /* --- 10KV 开关站 --- */
+  (function(){
+    var cx = 39.75, cz = -68.31, w = 28.65, d = 9.86, h = 5.3;
+    var g = new THREE.Group();
+    g.position.set(cx, 0, cz);
+    var body = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshStandardMaterial({ color:0x2e6a52, emissive:0x0e3a2c, emissiveIntensity:0.42,
+        roughness:0.62, metalness:0.28 })
+    );
+    body.position.y = h / 2; body.castShadow = true; g.add(body);
+
+    var rf = new THREE.Mesh(
+      new THREE.BoxGeometry(w + 0.9, 0.35, d + 0.9),
+      new THREE.MeshStandardMaterial({ color:0x3d8a68, roughness:0.5, metalness:0.35 })
+    );
+    rf.position.y = h + 0.18; g.add(rf);
+
+    var lbl = mkLbl('10KV开关站 5.3m', '#7dffb0');
+    lbl.position.set(0, h + 4.4, 0);
+    lbl.scale.set(17, 17 / 4.57, 1);
+    lbl.userData.baseW = 17; lbl.userData.isLbl = true;
+    lblAll.push(lbl); g.add(lbl);
+    grp.props.add(g);
+  })();
+
+  /* --- 1米宽叉车充电位 --- */
+  (function(){
+    var cx = 20.05, cz = -68.04, w = 8.39, d = 6.73;
+    var g = new THREE.Group();
+    g.position.set(cx, 0, cz);
+    var pad = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, d),
+      new THREE.MeshStandardMaterial({ color:0x5a7a1e, roughness:0.9 })
+    );
+    pad.rotation.x = -Math.PI / 2; pad.position.y = 0.1; g.add(pad);
+
+    var lm = new THREE.LineBasicMaterial({ color:0xd6ff4f, transparent:true, opacity:0.85 });
+    var pts = [];
+    for (var i = 1; i < 9; i++){
+      var t = -w / 2 + i * (w / 9);
+      pts.push(new THREE.Vector3(t, 0.14, -d / 2), new THREE.Vector3(t, 0.14, d / 2));
+    }
+    g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), lm));
+
+    var lbl = mkLbl('叉车充电位', '#d6ff4f');
+    lbl.position.set(0, 5.2, 0); lbl.scale.set(13, 13 / 4.57, 1);
+    lbl.userData.baseW = 13; lbl.userData.isLbl = true;
+    lblAll.push(lbl); g.add(lbl);
+    grp.props.add(g);
+  })();
+
+  /* --- 地下停车场出入口 ×2 --- */
+  mkRamp(19.02, 69.55, 22.62, 5.26, 0, -1);
+  mkRamp(-55.35, 9.66, 5.26, 22.98, 1, -1);
+
+  /* --- 南门 / 北门 ---
+     门位按「门体不压地面标线」校准：用 _ground.png 的标线积分图扫描 16m 门头 +
+     保安亭组装体足迹，取标线像素为 0 的落位（用户 m10139「这个门不应该在地标线上的」，
+     方案＝把门挪离标线，南北门都处理）。z 移到栅栏线之外（SITE_Z1=81.81 / SITE_Z0=-81.87，cz=±86.0），
+     整套门体落在栅栏外 apron 硬质引道上（场外无划线贴图，天然不压标线）；局部 x 按下表 delta 平移，并把 `gaps` / `SG_X` / `NG_X` 同步平移同样的 delta。
+       南门：cx=-12.00（原 -1.60，delta -10.40），boothX=-6.0
+       北门：cx=-12.50（原 -5.88，delta  -6.62），boothX=-6.0
+     保安亭偏移从 -12.5/-12.8 收到 -6.0：原偏移会把亭甩到 x≈-25 的停车标线区，
+     收小后门头与亭同处已删「人行雨棚」原址的无标线素沥青带。
+     注意：root.scale.x=-1 会把局部 x 映到世界 -x；平面图的 px 换算结果本就是
+     **局部** x（3#楼左上、1#楼右下已验证），保安亭在图上偏左＝局部负方向。 */
+  /* m10633/m10711 最终门位：回到平面图实测闸口（南 x=-1.60 / 北 x=-5.88），
+     cz 骑跨栅栏线 SITE_Z1=81.81 / SITE_Z0=-81.87（一半场内一半场外，不是全部在外面），
+     闸口标线随门对齐并重烘贴图；boothX 回 -12.8/-12.5；gaps/SG_X/NG_X 回原始值。
+     （上方注释块是 m10139/m10468 的历史记录，已被本段取代。）
+     m11300：按实拍照片拆掉车道上方全部门头/天花，保安室紧贴闸机
+     （boothX 由 -12.8/-12.5 改为 6.6，并随 FX 镜像，贴住三辊闸），门名改挂保安室侧墙小牌。 */
+  mkGate(-1.60, 81.81, '南门 SOUTH GATE',  1, 6.6, -1);  /* m18452: 保安亭移到画面右侧 */
+  mkGate(-5.88, -81.87, '北门 NORTH GATE', -1, 6.6);
+
+  /* m17106：4号楼（B4，宿舍/配套，59.9m/18F）南墙、篮球场右端边的饭堂大门。
+     用户要求「把饭堂大门打开一下」——模型原本没有门构件，新建为**门扇敞开**状态。
+     B4 南墙面 z = cz-d/2 = 53.34-27.17/2 = 39.755；篮球场 x25.8..50.4 / z23.45..37.63，
+     门中心取靠球场右端 x=48，贴墙朝球场（−z）开。 */
+  mkCanteenGate();
+  mkLoadingDockGate();   /* m18123: 南门米黄物流平台门（宽=平台 17.54m，贴 B3 南墙正对平台） */
+
+  /* --- 米黄物流平台 --- */
+  (function(){
+    var g = new THREE.Group();
+    g.position.set(-29.00, 0, 69.55);
+    var pad = new THREE.Mesh(
+      new THREE.BoxGeometry(17.54, 1.1, 4.90),
+      new THREE.MeshStandardMaterial({ color:0x9c7a4a, roughness:0.85 })
+    );
+    pad.position.y = 0.55; pad.castShadow = true; g.add(pad);
+    grp.props.add(g);
+  })();
+
+  /* --- 场地围栏 --- */
+  buildFence();
+}
+
+/* 篮球场线贴图 */
+function courtTex(){
+  var c = document.createElement('canvas');
+  c.width = 1024; c.height = 592;
+  var x = c.getContext('2d');
+  x.fillStyle = '#1c4a63'; x.fillRect(0, 0, 1024, 592);
+  x.strokeStyle = '#e8f6ff'; x.lineWidth = 5;
+
+  var M = 1024 / 24.57;         /* px per metre */
+  var W = 1024, H = 592;
+  var mr = 22;
+  x.strokeRect(mr, mr, W - mr * 2, H - mr * 2);
+  x.beginPath(); x.moveTo(W / 2, mr); x.lineTo(W / 2, H - mr); x.stroke();
+  x.beginPath(); x.arc(W / 2, H / 2, 1.8 * M, 0, Math.PI * 2); x.stroke();
+
+  [1, -1].forEach(function(s){
+    var cx = s < 0 ? mr : W - mr;
+    var kw = 5.8 * M, kh = 4.9 * M;
+    x.strokeRect(s < 0 ? cx : cx - kw, (H - kh) / 2, kw, kh);
+    x.beginPath(); x.arc(s < 0 ? cx + kw : cx - kw, H / 2, 1.8 * M, 0, Math.PI * 2); x.stroke();
+    x.beginPath();
+    x.arc(s < 0 ? cx + 1.5 * M : cx - 1.5 * M, H / 2, 6.75 * M,
+          s < 0 ? -Math.PI / 2 : Math.PI / 2, s < 0 ? Math.PI / 2 : Math.PI * 1.5);
+    x.stroke();
+  });
+  var t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = 4;
+  return t;
+}
+
+/* 坡道地面导向标识 —— 引导交通地标线
+   ---------------------------------------------------------------
+   平面图在这个坡道口只画了洋红描边 + 一行竖排文字，路面上没有任何
+   进入导向，缩到总览就是一块光秃秃的深色板子（用户 m09156 的反馈）。
+   这里补一套标准的地下车库入口组：
+     ① 进口喇叭口（trumpet）白线，由堤口向里收
+     ② 两侧白色边线
+     ③ 一个大号导入箭头
+     ④ 沿坡道一串人字（chevron），朝里指
+     ⑤ 堤口外侧两条黄色引道边线，划出"进场走廊"
+   全部用扁平 Box 铺在地面，不用贴图 —— 避免采样混叠，也便于随时改宽度。
+   —— 坐标系：本组局部 x 横向、z 纵向；vertical=1 时长边沿 z。
+      为避免两处坡道（西侧竖排 / 南门横排）各写一套，这里用
+      "轴向坐标 (v,u)"：u 沿坡道轴、v 为横向，最后按 vertical 映射回 x/z。
+      这样下面所有数字都是"从堤口往里多少米"，不依赖具体朝向。 */
+function rampGuides(g, w, d, vertical, dir){
+  var halfAx = (vertical ? d : w) / 2;      /* 沿坡道方向的半长 */
+  var halfWd = (vertical ? w : d) / 2;      /* 坡道横向半宽 */
+  var uMouth = dir * halfAx;                /* 堤口所在的轴向坐标 */
+
+  var Y_IN  = 0.145;   /* 坡道面（pit y=0.12）之上 */
+
+  var wMat = new THREE.MeshBasicMaterial({ color:0xdfe8f0, toneMapped:false });
+  var yMat = new THREE.MeshBasicMaterial({ color:0xf0cc40, toneMapped:false });
+
+  /* 轴向坐标 → 世界局部 x/z */
+  function P(v, u){ return vertical ? [v, u] : [u, v]; }
+
+  function seg(v1, u1, v2, u2, wid, mat, y){
+    var a = P(v1, u1), b = P(v2, u2);
+    var dx = b[0] - a[0], dz = b[1] - a[1];
+    var L = Math.sqrt(dx * dx + dz * dz);
+    if (L < 0.05) return;
+    var m = new THREE.Mesh(new THREE.BoxGeometry(L, 0.02, wid), mat);
+    m.position.set((a[0] + b[0]) / 2, y, (a[1] + b[1]) / 2);
+    m.rotation.y = Math.atan2(-dz, dx);
+    g.add(m);
+  }
+
+  /* 大号导入箭头：三角面 + 杆，朝坡道里指 */
+  function arrow(v, u, size, mat, y){
+    var dx, dz;
+    if (vertical){ dx = 0; dz = -dir; } else { dx = -dir; dz = 0; }
+    var head = Math.atan2(-dx, -dz);      /* 形状的 +y 在 heading=0 时朝 -z */
+    var grp2 = new THREE.Group();
+    var pxz = P(v, u);
+    grp2.position.set(pxz[0], y, pxz[1]);
+    grp2.rotation.y = head;
+
+    var s = new THREE.Shape();
+    s.moveTo(-size * 0.46, -size * 0.52);
+    s.lineTo(size * 0.46, -size * 0.52);
+    s.lineTo(0, size * 0.62);
+    s.closePath();
+    var tri = new THREE.Mesh(new THREE.ShapeGeometry(s), mat);
+    tri.rotation.x = -Math.PI / 2;
+    grp2.add(tri);
+
+    /* 箭杆：必须明显伸出三角底边之外，否则只剩一个 0.09 m 的凸块，
+       看起来像三角上长了个角。三角底边在 size*0.52 处，
+       杆从 size*0.30 起、长 size*0.85，尾部到 size*1.15。 */
+    var stem = new THREE.Mesh(new THREE.BoxGeometry(size * 0.30, 0.02, size * 0.85), mat);
+    stem.position.set(0, 0, size * 0.72);
+    grp2.add(stem);
+    g.add(grp2);
+  }
+
+  /* 人字（chevron）：两笔折线，尖端朝坡道里。
+     注意：两笔的 (v,u) 端点对两种朝向完全一致 —— 因为 seg() 内部已用 P()
+     把 (横向v, 轴向u) 映射回 x/z。曾经在这里按 vertical 分支各写一套，
+     结果横向坡道的顶点被算到了横向偏移上（人字歪 90°）。 */
+  function chev(v, u, s, thick, mat, y){
+    var h = s * 0.62;
+    seg(v - s, u + dir * h, v, u - dir * h, thick, mat, y);
+    seg(v, u - dir * h, v + s, u + dir * h, thick, mat, y);
+  }
+
+  /* ① 喇叭口：从堤口两角向里收，形成漏斗 */
+  [1, -1].forEach(function(sd){
+    seg(sd * (halfWd - 0.18), uMouth - dir * 0.10,
+        sd * (halfWd - 0.95), uMouth - dir * 4.20, 0.17, wMat, Y_IN);
+  });
+
+  /* ② 两侧边线 */
+  [1, -1].forEach(function(sd){
+    seg(sd * (halfWd - 0.48), uMouth - dir * 3.90,
+        sd * (halfWd - 0.48), uMouth - dir * (halfAx * 2 - 0.85), 0.14, wMat, Y_IN);
+  });
+
+  /* ③ 导入箭头（堤口内 2.6m） */
+  arrow(0, uMouth - dir * 2.60, Math.min(halfWd * 1.15, 2.2), wMat, Y_IN);
+
+  /* ④ 人字序列 —— 只画得下的才画，避免冲出坡道末端 */
+  var s0 = Math.min(halfWd - 0.62, 1.28);
+  [6.2, 9.9, 13.6, 17.3].forEach(function(k){
+    if (k > halfAx * 2 - 1.6) return;
+    chev(0, uMouth - dir * k, s0, 0.21, wMat, Y_IN);
+  });
+
+  /* ⑤ 黄色警示带 —— 车库坡道的标准做法：堤口一道横向警示，
+        坡道内两条黄色侧带。全部落在坡道面内，不会外溢到道路上
+        （两处坡道的堤口并不都朝着车行道，往外画引道线会指进角落）。 */
+  seg(-(halfWd - 0.30), uMouth - dir * 0.55,
+       (halfWd - 0.30), uMouth - dir * 0.55, 0.26, yMat, Y_IN);
+  [1, -1].forEach(function(sd){
+    seg(sd * (halfWd - 0.86), uMouth - dir * 1.30,
+        sd * (halfWd - 0.86), uMouth - dir * 9.60, 0.15, yMat, Y_IN);
+  });
+}
+
+/* 地下车库坡道 */
+function mkRamp(cx, cz, w, d, vertical, dir){
+  var g = new THREE.Group();
+  g.position.set(cx, 0, cz);
+  if (dir !== 1 && dir !== -1) dir = 1;   /* 堤口在哪一端：+1 为轴线正端 */
+
+  /* 坡道面与挡墙必须走 C()：0x070d15 直接塞进 material.color 会被当成线性值，
+     经 outputEncoding 提亮后变成 rgb(50,63,80) 的浅灰蓝 —— 一个亮蓝色大浴缸，
+     完全不像下沉坡道。C() 把它压回接近纯黑。 */
+  var pit = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, d),
+    new THREE.MeshStandardMaterial({ color:C(0x0e1319), roughness:0.98, metalness:0.02 })
+  );
+  pit.rotation.x = -Math.PI / 2; pit.position.y = 0.12; g.add(pit);
+
+  /* 坡道底部渐深：用同心两层椭圆状暗面模拟"越往里越黑"，
+     矩形会露出生硬直边，反而不像下沉。 */
+  [[0.86, 0.16], [0.62, 0.30]].forEach(function(cfg){
+    var deep = new THREE.Mesh(
+      new THREE.PlaneGeometry(w * cfg[0], d * cfg[0]),
+      new THREE.MeshBasicMaterial({ color:0x05080c, transparent:true, opacity:cfg[1] })
+    );
+    deep.rotation.x = -Math.PI / 2; deep.position.y = 0.126;
+    deep.position.z = vertical ? (dir * d * 0.16) : 0;
+    deep.position.x = vertical ? 0 : (dir * w * 0.16);
+    g.add(deep);
+  });
+
+  var wallMat = new THREE.MeshStandardMaterial({ color:C(0x2b3641), roughness:0.85, metalness:0.10 });
+
+  var lm = new THREE.LineBasicMaterial({ color:0xff3ea5, transparent:true, opacity:0.92 });
+  var pts = [
+    new THREE.Vector3(-w / 2, 0.18, -d / 2), new THREE.Vector3(w / 2, 0.18, -d / 2),
+    new THREE.Vector3(w / 2, 0.18, d / 2),   new THREE.Vector3(-w / 2, 0.18, d / 2),
+    new THREE.Vector3(-w / 2, 0.18, -d / 2)
+  ];
+  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lm));
+
+  /* 两侧挡墙 —— 只要路缘高度（0.42m）。原来给到 1.1m，
+     俯视时四条浅色边把坡道围成一个"浴缸"，完全读不出下沉感。 */
+  [1, -1].forEach(function(s){
+    var wall = new THREE.Mesh(
+      new THREE.BoxGeometry(vertical ? 0.42 : w, 0.42, vertical ? d : 0.42),
+      wallMat
+    );
+    wall.position.set(vertical ? s * w / 2 : 0, 0.21, vertical ? 0 : s * d / 2);
+    g.add(wall);
+  });
+
+  /* 地面导向标识（喇叭口 / 边线 / 导入箭头 / 人字 / 黄色警示带） */
+  rampGuides(g, w, d, vertical, dir);
+
+  var lbl = mkLbl('地下停车场入口', '#ff6ec0');
+  lbl.position.set(0, 4.6, 0);
+  var lw = vertical ? 15 : 20;
+  lbl.scale.set(lw, lw / 4.57, 1);
+  lbl.userData.baseW = lw; lbl.userData.isLbl = true;
+  lblAll.push(lbl); g.add(lbl);
+
+  grp.props.add(g);
+}
+
+/* 大门（道闸 + 保安亭） */
+function mkGate(cx, cz, label, dir, boothX, fxOverride){
+  var g = new THREE.Group();
+  g.position.set(cx, 0, cz);
+
+  /* m11300 (2026-11-11): the real-site photo shows NO overhead gate canopy.
+     The lane is open to the sky: only ground-level barrier / pedestrian
+     turnstiles / bollards / guard room. Removed for good:
+       4 tall posts, hood, brim, fascia, back board, 6.4 m floating name board.
+     S  = z orientation (south +1 / north -1), still used for the guard room's
+          slight set-back from the fence line.
+     FX = local-x mirror for the lane furniture so the north gate (viewed from
+          the opposite side) keeps the pedestrian turnstiles on the RIGHT of
+          the picture (m11212). */
+  var S  = (dir === -1) ? -1 : 1;
+  var FX = (typeof fxOverride === 'number') ? fxOverride : ((dir === -1) ? -1 : 1);  /* m18452: fxOverride mirrors lane furniture */
+
+  /* Guard-room offset from gate centre, in |local x| metres. Placed right
+     next to the pedestrian turnstiles ("保安室是挨着的") and mirrored by FX
+     so BOTH gates get the same layout. Callers pass 6.6. */
+  if (typeof boothX !== 'number') boothX = 6.6;
+
+  var postMat = new THREE.MeshStandardMaterial({ color:C(0xd7dbdd), roughness:0.62, metalness:0.18 });
+  var darkMat = new THREE.MeshStandardMaterial({ color:C(0x2b3138), roughness:0.72, metalness:0.22 });
+
+  /* --- vehicle barrier: box + arm + stay, on one side of the lane --- */
+  var armMat = new THREE.MeshStandardMaterial({ color:C(0xf0b429), emissive:0x6b5200, emissiveIntensity:0.55 });
+  var gateBar = new THREE.Group();
+  gateBar.position.set(-6.0 * FX, 0, 0);
+  var box = new THREE.Mesh(new THREE.BoxGeometry(0.46, 1.08, 0.46), darkMat);
+  box.position.y = 0.54; box.castShadow = true; gateBar.add(box);
+  var cap = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.10, 0.54), postMat);
+  cap.position.y = 1.12; gateBar.add(cap);
+  var bar = new THREE.Mesh(new THREE.BoxGeometry(7.0, 0.12, 0.12), armMat);
+  bar.position.set(3.5 * FX, 1.05, 0.0); bar.castShadow = true; gateBar.add(bar);
+  var stay = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.72, 0.08), armMat);
+  stay.position.set(1.05 * FX, 0.72, 0.0); stay.rotation.z = -0.62 * FX; gateBar.add(stay);
+  g.add(gateBar);
+
+  /* bollards flanking the vehicle lane */
+  [-7.4, 1.9].forEach(function(x){
+    var b = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.95, 8),
+      new THREE.MeshStandardMaterial({ color:C(0xa8d43a), roughness:0.55, metalness:0.25 }));
+    b.position.set(x * FX, 0.48, 0); g.add(b);
+  });
+
+  /* pedestrian tripod turnstiles (the pair the user pointed at) */
+  [3.0, 4.4].forEach(function(x){
+    var t = new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.06, 1.60), darkMat);
+    t.position.set(x * FX, 0.53, 0); t.castShadow = true; g.add(t);
+    for (var k = 0; k < 3; k++){
+      var rd = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.50, 6),
+        new THREE.MeshStandardMaterial({ color:C(0xc9d2d8), roughness:0.40, metalness:0.55 }));
+      rd.position.set((x + 0.30) * FX, 0.78, -0.34 + k * 0.34);
+      rd.rotation.z = Math.PI / 2; g.add(rd);
+    }
+  });
+
+  /* guard room: single-storey box with a large glass band and its OWN flat
+     roof. The flat canopy in the photo belongs to the guard room, it does NOT
+     span the vehicle lane. Sits immediately beside the turnstiles. */
+  var booth = new THREE.Group();
+  booth.position.set(boothX * FX, 0, -0.8 * S);
+  var bb = new THREE.Mesh(new THREE.BoxGeometry(3.4, 3.0, 3.4),
+    new THREE.MeshStandardMaterial({ color:C(0xdadfe2), roughness:0.60, metalness:0.16 }));
+  bb.position.y = 1.5; bb.castShadow = true; booth.add(bb);
+  var gl = new THREE.Mesh(new THREE.BoxGeometry(3.46, 1.45, 3.46),
+    new THREE.MeshStandardMaterial({ color:C(0x2c3f4e), roughness:0.10, metalness:0.86 }));
+  gl.position.y = 1.90; booth.add(gl);
+  var br = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.22, 4.0),
+    new THREE.MeshStandardMaterial({ color:C(0xc3c9cd), roughness:0.58, metalness:0.22 }));
+  br.position.y = 3.1; booth.add(br);
+  g.add(booth);
+
+  /* small gate-name plate on the guard room's outer wall. No more floating
+     6.4 m board above the lane; 2.8 m reads as a wall sign. */
+  var lbl = mkLbl(label, '#8fe8ff');
+  lbl.position.set((boothX + 2.15) * FX, 2.45, -0.8 * S);
+  lbl.scale.set(2.8, 2.8 / 4.57, 1);
+  lbl.userData.baseW = 2.8; lbl.userData.isLbl = true;
+  lblAll.push(lbl); g.add(lbl);
+
+  grp.props.add(g);
+}
+
+/* m17106/m17856/m18023：饭堂大门（门扇关闭）——贴在 4号楼南墙、正对篮球场。
+   纯几何构件，进 grp.props 图层（「场地设施」开关可隐藏）。
+   m17856：门洞加宽到与篮球场同宽 24.57m，中心对齐球场 cx=38.07（原 x48 加宽会越出 B4 墙端悬空）。 */
+function mkCanteenGate(){
+  var g = new THREE.Group();
+  var W  = 24.57;               /* 门洞净宽 = 篮球场宽 */
+  var GX = 38.07;               /* 对齐篮球场中心 cx */
+  var GZ = 39.755;              /* B4 南墙面；朝球场 = -z */
+  g.position.set(GX, 0, GZ);
+  g.name = 'canteen_gate';
+  g.userData.isCanteenGate = true;
+  g.userData.gateW = W;
+
+  var frame = new THREE.MeshStandardMaterial({ color:C(0xd8a24a), roughness:0.44, metalness:0.34 });
+  var glass = new THREE.MeshStandardMaterial({ color:C(0x8fb8c8), roughness:0.18, metalness:0.10,
+    transparent:true, opacity:0.55, emissive:C(0x12384a), emissiveIntensity:0.30 });
+  var dark  = new THREE.MeshStandardMaterial({ color:C(0x242a31), roughness:0.92, metalness:0.04 });
+  var stone = new THREE.MeshStandardMaterial({ color:C(0x9aa0a6), roughness:0.86, metalness:0.10 });
+
+  /* 门槛：略向球场侧伸出 */
+  var th = new THREE.Mesh(new THREE.BoxGeometry(W + 0.6, 0.22, 1.6), stone);
+  th.position.set(0, 0.11, -0.6); th.castShadow = true; th.receiveShadow = true; g.add(th);
+
+  /* 门洞暗背板：贴在墙面前 3cm，让敞开的门读成「入口」而不是一块墙 */
+  var rec = new THREE.Mesh(new THREE.BoxGeometry(W, 3.90, 0.06), dark);
+  rec.position.set(0, 1.95, -0.03); g.add(rec);
+
+  /* 门框：两根立柱 + 过梁 */
+  [-1, 1].forEach(function(s){
+    var jamb = new THREE.Mesh(new THREE.BoxGeometry(0.60, 4.20, 0.90), frame);
+    jamb.position.set(s * (W/2 + 0.30), 2.10, -0.20); jamb.castShadow = true; g.add(jamb);
+  });
+  var lintel = new THREE.Mesh(new THREE.BoxGeometry(W + 1.20, 0.60, 0.90), frame);
+  lintel.position.set(0, 4.50, -0.20); lintel.castShadow = true; g.add(lintel);
+
+  /* 门扇：每侧 4 扇，共 8 扇平贴门洞关闭（m18023 由外开 57° 改为关闭 rotation=0），凑够整幅 24.57m 门洞。
+     每扇绕自身外端铰链定位；关闭态相邻扇首尾相接、不重叠、不穿墙。 */
+  var perSide = 4, leafW = (W/2) / perSide, leafH = 3.70;
+  function leaf(side, k){
+    var piv = new THREE.Group();
+    var hingeX = side * (W/2 - k * leafW);
+    piv.position.set(hingeX, 0, -0.22);
+    piv.rotation.y = 0;                  /* 门扇关闭：平贴门洞铺满整幅 */
+    var panel = new THREE.Mesh(new THREE.BoxGeometry(leafW - 0.06, leafH, 0.10), frame);
+    panel.position.set(-side * leafW/2, leafH/2, 0); panel.castShadow = true; piv.add(panel);
+    var gl = new THREE.Mesh(new THREE.BoxGeometry(leafW - 0.36, leafH - 0.42, 0.06), glass);
+    gl.position.set(-side * leafW/2, leafH/2 + 0.02, -0.08); piv.add(gl);
+    var hd = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.30, 8),
+      new THREE.MeshStandardMaterial({ color:C(0xe8e2d2), roughness:0.30, metalness:0.70 }));
+    hd.position.set(-side * (leafW - 0.24), 1.55, -0.14); piv.add(hd);
+    g.add(piv);
+  }
+  [-1, 1].forEach(function(s){ for(var k=0;k<perSide;k++) leaf(s,k); });
+
+  /* 门头标识（沿用全场统一的 mkLbl 精灵，进 lblAll 受「标签」开关控制） */
+  var lbl = mkLbl('饭堂 CANTEEN', '#ffd27f');
+  lbl.position.set(0, 5.40, -0.20);
+  lbl.scale.set(9.0, 9.0 / 4.57, 1);
+  lbl.userData.baseW = 9.0;
+  lblAll.push(lbl); g.add(lbl);
+
+  grp.props.add(g);
+}
+
+/* m18123：南门米黄物流平台门 —— 贴 3号楼(B3)南墙、正对米黄物流平台。
+   纯几何构件，进 grp.props 图层（「场地设施」开关可隐藏）。
+   门宽 = 平台宽 17.54m（用户定案「门大小和台阶宽度一致」，台阶实为米黄平台）。
+   平台局部中心 (-29.00, 69.55)，B3 局部 cx=-34.11 cz=50.03 d=33.79 → 南墙面 z=50.03+33.79/2=66.925；
+   平台中心局部 x=-29.00 在 B3 墙跨 [-56.20,-12.02] 内 → 门贴墙 z=66.925，朝平台 +z 开。
+   样式沿用 mkCanteenGate()（饭堂门），门扇关闭平贴门洞。 */
+function mkLoadingDockGate(){
+  var g = new THREE.Group();
+  var W  = 17.54;               /* 门洞净宽 = 米黄物流平台宽 */
+  var GX = -29.00;              /* 对齐平台中心局部 x */
+  var GZ = 66.925;              /* B3 南墙面；朝平台 = +z */
+  g.position.set(GX, 0, GZ);
+  g.name = 'loading_dock_gate';
+  g.userData.isLoadingDockGate = true;
+  g.userData.gateW = W;
+
+  var frame = new THREE.MeshStandardMaterial({ color:C(0xd8a24a), roughness:0.44, metalness:0.34 });
+  var glass = new THREE.MeshStandardMaterial({ color:C(0x8fb8c8), roughness:0.18, metalness:0.10,
+    transparent:true, opacity:0.55, emissive:C(0x12384a), emissiveIntensity:0.30 });
+  var dark  = new THREE.MeshStandardMaterial({ color:C(0x242a31), roughness:0.92, metalness:0.04 });
+  var stone = new THREE.MeshStandardMaterial({ color:C(0x9aa0a6), roughness:0.86, metalness:0.10 });
+
+  /* 平台垫块前沿 z=67.10、墙 z=66.925，只有 ~0.175m 缝隙；门扇全部压在缝内，避免被 1.1m 高的平台埋住。 */
+  /* 门槛：贴近墙面 */
+  var th = new THREE.Mesh(new THREE.BoxGeometry(W + 0.6, 0.22, 0.9), stone);
+  th.position.set(0, 0.11, 0.02); th.castShadow = true; th.receiveShadow = true; g.add(th);
+
+  /* 门洞暗背板：贴在墙面前 2cm */
+  var rec = new THREE.Mesh(new THREE.BoxGeometry(W, 3.90, 0.05), dark);
+  rec.position.set(0, 1.95, 0.02); g.add(rec);
+
+  /* 门框：两根立柱 + 过梁（立柱在平台 x 跨之外，不与垫块相交） */
+  [-1, 1].forEach(function(s){
+    var jamb = new THREE.Mesh(new THREE.BoxGeometry(0.60, 4.20, 0.16), frame);
+    jamb.position.set(s * (W/2 + 0.30), 2.10, 0.06); jamb.castShadow = true; g.add(jamb);
+  });
+  var lintel = new THREE.Mesh(new THREE.BoxGeometry(W + 1.20, 0.60, 0.16), frame);
+  lintel.position.set(0, 4.50, 0.06); lintel.castShadow = true; g.add(lintel);
+
+  /* 门扇：每侧 3 扇，共 6 扇平贴门洞关闭，凑够 17.54m 门洞。 */
+  var perSide = 3, leafW = (W/2) / perSide, leafH = 3.70;
+  function leaf(side, k){
+    var piv = new THREE.Group();
+    var hingeX = side * (W/2 - k * leafW);
+    piv.position.set(hingeX, 0, 0.06);
+    piv.rotation.y = 0;                  /* 门扇关闭：平贴门洞铺满整幅 */
+    var panel = new THREE.Mesh(new THREE.BoxGeometry(leafW - 0.06, leafH, 0.08), frame);
+    panel.position.set(-side * leafW/2, leafH/2, 0); panel.castShadow = true; piv.add(panel);
+    var gl = new THREE.Mesh(new THREE.BoxGeometry(leafW - 0.36, leafH - 0.42, 0.04), glass);
+    gl.position.set(-side * leafW/2, leafH/2 + 0.02, 0.05); piv.add(gl);
+    var hd = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.30, 8),
+      new THREE.MeshStandardMaterial({ color:C(0xe8e2d2), roughness:0.30, metalness:0.70 }));
+    hd.position.set(-side * (leafW - 0.24), 1.55, 0.08); piv.add(hd);
+    g.add(piv);
+  }
+  [-1, 1].forEach(function(s){ for(var k=0;k<perSide;k++) leaf(s,k); });
+
+  /* 门头标识 */
+  var lbl = mkLbl('物流门 DOCK', '#ffd27f');
+  lbl.position.set(0, 5.40, 0.20);
+  lbl.scale.set(7.5, 7.5 / 4.57, 1);
+  lbl.userData.baseW = 7.5;
+  lblAll.push(lbl); g.add(lbl);
+
+  grp.props.add(g);
+}
+
+/* 围栏 */
+function buildFence(){
+  /* 实拍（p02/p05）：白色竖杆栅栏（1.8m）+ 下部深色矮墙（0.5m）+ 内侧绿篱。
+     不是整片实心墙，也不是半透明板——竖杆阵列才读得出"栏杆"。 */
+  var H = 1.80, WALL = 0.52;
+  var barMat  = new THREE.MeshStandardMaterial({ color:C(0xdde3e7), roughness:0.52, metalness:0.30 });
+  var wallMat = new THREE.MeshStandardMaterial({ color:C(0x6c7176), roughness:0.88, metalness:0.10 });
+  /* 门洞缺口 —— 与 mkGate 的门头宽度（HW*2 = 16m）对齐，
+     基准取 mkGate 的实际中心：南门局部 x=-1.60、北门局部 x=-5.88
+      （门回到实测闸口并骑跨栅栏线，缺口须与门头对齐，否则门头会怼在栅栏上） */
+  var gaps = { south:[[-9.80, 6.60]], north:[[-14.08, 2.32]] };
+
+  /* 竖杆合并成 InstancedMesh，几百根也不增加 draw call */
+  var bars = [];
+
+  function seg(x1, z1, x2, z2){
+    var len = Math.sqrt((x2 - x1) * (x2 - x1) + (z2 - z1) * (z2 - z1));
+    if (len < 0.4) return;
+    var ang = -Math.atan2(z2 - z1, x2 - x1);
+
+    /* 下部矮墙 */
+    var wall = new THREE.Mesh(new THREE.BoxGeometry(len, WALL, 0.30), wallMat);
+    wall.position.set((x1 + x2) / 2, WALL / 2, (z1 + z2) / 2);
+    wall.rotation.y = ang;
+    wall.receiveShadow = true;
+    grp.props.add(wall);
+
+    /* 上沿横杆 */
+    [WALL + 0.06, WALL + H - 0.06].forEach(function(yy){
+      var rail = new THREE.Mesh(new THREE.BoxGeometry(len, 0.075, 0.075), barMat);
+      rail.position.set((x1 + x2) / 2, yy, (z1 + z2) / 2);
+      rail.rotation.y = ang;
+      grp.props.add(rail);
+    });
+
+    /* 竖杆位置收集 */
+    var n = Math.max(1, Math.round(len / 0.34));
+    for (var i = 0; i <= n; i++){
+      var t = i / n;
+      bars.push([x1 + (x2 - x1) * t, z1 + (z2 - z1) * t]);
+    }
+
+    /* 立柱：每 3.6m 一根，略粗 */
+    var np = Math.max(1, Math.round(len / 3.6));
+    for (var p = 0; p <= np; p++){
+      var tt = p / np;
+      var post = new THREE.Mesh(new THREE.BoxGeometry(0.20, H + WALL + 0.16, 0.20), barMat);
+      post.position.set(x1 + (x2 - x1) * tt, (H + WALL + 0.16) / 2, z1 + (z2 - z1) * tt);
+      post.castShadow = true;
+      grp.props.add(post);
+    }
+  }
+
+  /* 东西两侧通长 */
+  seg(SITE_X0, SITE_Z0, SITE_X0, SITE_Z1);
+  seg(SITE_X1, SITE_Z0, SITE_X1, SITE_Z1);
+
+  /* 南北两侧留门洞 */
+  function runFixed(zLine, gapList, x0, x1){
+    var cur = x0;
+    gapList.sort(function(a, b){ return a[0] - b[0]; }).forEach(function(gp){
+      if (gp[0] > cur) seg(cur, zLine, gp[0], zLine);
+      cur = Math.max(cur, gp[1]);
+    });
+    if (cur < x1) seg(cur, zLine, x1, zLine);
+  }
+  runFixed(SITE_Z0, gaps.north.map(function(g){ return g.slice(); }), SITE_X0, SITE_X1);
+  runFixed(SITE_Z1, gaps.south.map(function(g){ return g.slice(); }), SITE_X0, SITE_X1);
+
+  /* 竖杆一次性实例化 */
+  if (bars.length){
+    var barGeo = new THREE.BoxGeometry(0.055, H - 0.14, 0.055);
+    var inst = new THREE.InstancedMesh(barGeo, barMat, bars.length);
+    var mtx = new THREE.Matrix4();
+    bars.forEach(function(b, i){
+      mtx.makeTranslation(b[0], WALL + (H - 0.14) / 2, b[1]);
+      inst.setMatrixAt(i, mtx);
+    });
+    inst.instanceMatrix.needsUpdate = true;
+    inst.castShadow = true;
+    grp.props.add(inst);
+  }
+}
+
+/* 绿化 / 行道树 */
+/* 确定性伪随机：绿化布置必须是固定的，不能每次刷新都换位置 */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function buildTrees(){
+  /* 实拍园区的行道树是阔叶乔木（香樟/桂花一类），不是针叶锥形；
+     用低面数球体叠团模拟树冠，代价低但轮廓对。 */
+  var col = [0x2c6b3f, 0x357a48, 0x235a35, 0x3d8450];
+  var rnd = mulberry32(20261109);
+
+  /* ---- 绿化全部布置在围墙之外 ----
+     反复核对过平面图：这块地**几乎全是硬化路面**——建筑之外就是沥青环道、
+     停车带、卸货平台和门岗，用地红线内并没有成规模的绿地。
+     之前把树撒在场内，无论怎么剔除障碍，看起来都像"树长在车道上"（用户反馈"越界"）。
+     正确做法是把乔木做成**环绕园区的外围绿带**，落在红线外侧 2.6~11m 的范围内，
+     这也和现场照片一致：树都在围墙外的市政绿地上。 */
+  var INNER = 2.6, OUTER = 11.0;   /* 距红线向外的距离区间 */
+
+  /* ---- 用「候选点 + 障碍剔除」代替手写坐标区间 ----
+     老做法是把树按 7 段硬编码的 x 区间随机撒，结果树种到了环路上、
+     围墙外、甚至压在雨棚边上（用户反馈"绿植越界"）。
+     现在先在整个场地内布网格候选点，再用一组障碍矩形做剔除，
+     每棵树只可能落在真正空着的地面上。 */
+  var OBS = [];
+  function obs(cx, cz, w, d, m){
+    m = m || 0;
+    OBS.push({ x:cx, z:cz, hw:(w + m * 2) / 2, hd:(d + m * 2) / 2 });
+  }
+
+  /* 建筑（原人行道已删，仍留 4.2m 缓冲，避免树冠压到立面） */
+  BLD.forEach(function(o){ obs(o.cx, o.cz, o.w, o.d, 4.2); });
+  /* 雨棚 */
+  SHED.forEach(function(s){ obs(s.cx, s.cz, s.w, s.d, 2.0); });
+  /* 场地设施 */
+  obs( 38.07,  30.54, 24.57, 14.18, 2.2);   /* 篮球场 */
+  obs( 13.41,  23.63,  9.51,  3.07, 2.0);   /* 吸烟亭 */
+  obs( 19.94,  26.23,  3.07,  8.27, 2.0);   /* 吸烟亭(2) */
+  obs( 39.75, -68.31, 28.65,  9.86, 2.0);   /* 10KV 开关站 */
+  obs( 20.05, -68.04,  8.39,  6.73, 2.0);   /* 叉车充电位 */
+  obs(-29.00,  69.55, 17.54,  4.90, 2.0);   /* 物流平台 */
+  obs( 19.02,  69.55, 22.62,  5.26, 2.0);   /* 车库入口（南） */
+  obs(-55.35,   9.66,  5.26, 22.98, 2.0);   /* 车库入口（西） */
+
+  /* 环路走廊 —— 车道、路缘石、以及路口导流带上都不能有树 */
+  var RB = 3.0;                              /* 车道半宽 + 路缘缓冲 */
+  obs(  0.0,  76.2, 129.0, 10.4 + RB * 2, 0);   /* 南侧环路 */
+  obs(  0.0, -78.3, 129.0,  7.4 + RB * 2, 0);   /* 北侧环路 */
+  obs(-61.7,   0.0,  5.8 + RB * 2, 163.7, 0);   /* 西侧环路 */
+  obs( 60.5,   0.0,  7.9 + RB * 2, 163.7, 0);   /* 东侧环路 */
+  obs( 30.2,  38.7,  53.0,  3.6 + RB * 2, 0);   /* 中部横向支路 */
+  obs( 33.0,  10.0,   3.2 + RB * 2, 100.0, 0);  /* 1#楼东侧通道 */
+  obs(-18.0,  10.0,   3.2 + RB * 2, 100.0, 0);  /* 中部通道 */
+
+  function blocked(x, z){
+    for (var i = 0; i < OBS.length; i++){
+      var o = OBS[i];
+      if (Math.abs(x - o.x) < o.hw && Math.abs(z - o.z) < o.hd) return true;
+    }
+    return false;
+  }
+
+  /* ---- 围墙外的环形绿带 ----
+     沿用地红线向外的环带（距红线 2.6~11m）按网格布点。
+     这个区间落在场地基座之外，不会压到围墙、道路、建筑或任何场地设施，
+     逻辑上不可能"越界"，不需要再维护一长串障碍矩形。 */
+  var M = 3.6;                                  /* 树冠半径 + 余量 */
+  var STEP = 4.8;
+
+  var trees = [];
+
+  /* 四条外环带：(x0,x1,z0,z1, 长轴方向) */
+  var bands = [
+    /* 北侧（z 小的一端） */
+    { x0: SITE_X0 - OUTER, x1: SITE_X1 + OUTER,
+      z0: SITE_Z0 - OUTER, z1: SITE_Z0 - INNER, axis: 'x' },
+    /* 南侧 */
+    { x0: SITE_X0 - OUTER, x1: SITE_X1 + OUTER,
+      z0: SITE_Z1 + INNER, z1: SITE_Z1 + OUTER, axis: 'x' },
+    /* 西侧（夹在南北两带之间，避免四角重复） */
+    { x0: SITE_X0 - OUTER, x1: SITE_X0 - INNER,
+      z0: SITE_Z0 - INNER, z1: SITE_Z1 + INNER, axis: 'z' },
+    /* 东侧 */
+    { x0: SITE_X1 + INNER, x1: SITE_X1 + OUTER,
+      z0: SITE_Z0 - INNER, z1: SITE_Z1 + INNER, axis: 'z' }
+  ];
+
+  /* 出入口净空：南北门正对着门头和闸机，门前必须是硬质铺装，
+     不能有树遮挡视线、也方便车辆进出。
+     基准取 mkGate 的实际中心（南门 -1.60 / 北门 -5.88），而不是 0，
+     否则门位一挪，绿化缺口就跟着错位。半径 15m 覆盖 16m 门头再加余量。 */
+  var GATE_CLEAR = 15.0;
+  var SG_X = -1.60, NG_X = -5.88;             /* 南门 / 北门中心局部 x（m10633 回实测闸口） */
+  function inGateGap(x, z){
+    if (z > SITE_Z1 && Math.abs(x - SG_X) < GATE_CLEAR) return true;   /* 南门外 */
+    if (z < SITE_Z0 && Math.abs(x - NG_X) < GATE_CLEAR) return true;   /* 北门外 */
+    return false;
+  }
+
+  bands.forEach(function(b){
+    var len = (b.axis === 'x') ? (b.x1 - b.x0) : (b.z1 - b.z0);
+    var dep = (b.axis === 'x') ? (b.z1 - b.z0) : (b.x1 - b.x0);
+    var n   = Math.max(3, Math.round(len / 7.2));
+    /* 两排：靠内侧稀疏、靠外侧密，形成纵深 */
+    var rows = (dep > 5) ? 2 : 1;
+
+    for (var r = 0; r < rows; r++){
+      for (var i = 0; i < n; i++){
+        var t = (i + 0.5 + (r ? 0.5 : 0)) / n;
+        var lat = (r + 0.5) / rows;            /* 0..1 沿厚度方向 */
+        if (rnd() < 0.16) continue;            /* 自然留白 */
+
+        var x, z;
+        if (b.axis === 'x'){
+          x = b.x0 + (b.x1 - b.x0) * t + (rnd() - 0.5) * 2.2;
+          z = b.z0 + (b.z1 - b.z0) * lat + (rnd() - 0.5) * 1.4;
+        } else {
+          z = b.z0 + (b.z1 - b.z0) * t + (rnd() - 0.5) * 2.2;
+          x = b.x0 + (b.x1 - b.x0) * lat + (rnd() - 0.5) * 1.4;
+        }
+
+        /* 围墙处（红线正好穿过）绝不种树 */
+        if (x > SITE_X0 - M && x < SITE_X1 + M &&
+            z > SITE_Z0 - M && z < SITE_Z1 + M) continue;
+
+        /* 南北门门口净空 */
+        if (inGateGap(x, z)) continue;
+
+        trees.push([x, z]);
+      }
+    }
+  });
+
+  /* ---- 绿化地面：围墙外的环形草带 ----
+     树全部种在用地红线之外，那里只有 y=-1.2 的远景暗板，
+     不加草带的话树干会悬空。草坪用略高于远景板的薄板，
+     边缘高于沥青基面 0.02m，避免与场地面打架。
+     南北两带在门口处**断开**：门前是车行入口，应当是硬质路面而不是草坪。 */
+  var soilMat = new THREE.MeshStandardMaterial({
+    color:C(0x3d5240), roughness:0.96, metalness:0.02
+  });
+  var GR = OUTER + 1.4;                        /* 草带外扩一点包住树冠 */
+
+  /* 把一条横带按门口净空切成左右两段，返回若干 [x0,x1,z0,z1] */
+  function splitAtGate(x0, x1, z0, z1, gx){
+    var out = [];
+    var a = gx - GATE_CLEAR, b = gx + GATE_CLEAR;
+    if (a > x0) out.push([x0, Math.min(a, x1), z0, z1]);
+    if (b < x1) out.push([Math.max(b, x0), x1, z0, z1]);
+    return out;
+  }
+
+  var strips = [];
+  /* 北侧（门口在北门 x=NG_X） */
+  strips = strips.concat(splitAtGate(SITE_X0 - GR, SITE_X1 + GR,
+                                     SITE_Z0 - GR, SITE_Z0 - INNER * 0.35, NG_X));
+  /* 南侧 */
+  strips = strips.concat(splitAtGate(SITE_X0 - GR, SITE_X1 + GR,
+                                     SITE_Z1 + INNER * 0.35, SITE_Z1 + GR, SG_X));
+  /* 东西两侧（门口不在这两段上，整条保留） */
+  strips.push([SITE_X0 - GR, SITE_X0 - INNER * 0.35,
+               SITE_Z0 - INNER * 0.35, SITE_Z1 + INNER * 0.35]);
+  strips.push([SITE_X1 + INNER * 0.35, SITE_X1 + GR,
+               SITE_Z0 - INNER * 0.35, SITE_Z1 + INNER * 0.35]);
+
+  strips.forEach(function(b){
+    var w = b[1] - b[0], dd = b[3] - b[2];
+    if (w <= 0.2 || dd <= 0.2) return;
+    var m = new THREE.Mesh(new THREE.PlaneGeometry(w, dd), soilMat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set((b[0] + b[1]) / 2, 0.015, (b[2] + b[3]) / 2);
+    m.receiveShadow = true;
+    grp.props.add(m);
+  });
+
+  /* 门前硬质引道 —— 补上草带断开后露出的地面 */
+  var apronMat = new THREE.MeshStandardMaterial({
+    color:C(0x4b5157), roughness:0.94, metalness:0.03
+  });
+  [
+    [SG_X, SITE_Z1 + (INNER * 0.35 + GR) / 2, GATE_CLEAR * 2, GR + INNER * 0.35],
+    [NG_X, SITE_Z0 - (INNER * 0.35 + GR) / 2, GATE_CLEAR * 2, GR + INNER * 0.35]
+  ].forEach(function(q){
+    var m = new THREE.Mesh(new THREE.PlaneGeometry(q[2], q[3]), apronMat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(q[0], 0.012, q[1]);
+    m.receiveShadow = true;
+    grp.props.add(m);
+  });
+
+  trees.forEach(function(p){
+    var x = p[0], z = p[1];
+    var s = 0.86 + rnd() * 0.34;
+    var base = col[Math.floor(rnd() * col.length)];
+
+    var g = new THREE.Group();
+    g.position.set(x, 0, z);
+
+    var tr = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.14 * s, 0.23 * s, 2.5 * s, 6),
+      new THREE.MeshStandardMaterial({ color:C(0x4a3b2c), roughness:0.96 })
+    );
+    tr.position.y = 1.25 * s;
+    tr.castShadow = true;
+    g.add(tr);
+
+    /* 树冠：3 团球体错位堆叠 */
+    for (var i = 0; i < 3; i++){
+      var r = (1.20 + (i % 2) * 0.32) * s;
+      var cn = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(r, 1),
+        new THREE.MeshStandardMaterial({
+          color:C(base), roughness:0.94, metalness:0.02, flatShading:true
+        })
+      );
+      cn.position.set(
+        (rnd() - 0.5) * 0.95 * s,
+        (2.55 + i * 0.60 + rnd() * 0.22) * s,
+        (rnd() - 0.5) * 0.95 * s
+      );
+      cn.castShadow = true;
+      g.add(cn);
+    }
+    grp.props.add(g);
+  });
+}
+
+/* ========================================================
+   7. 标签纹理
+   ======================================================== */
+function mkLbl(txt, color){
+  var c = document.createElement('canvas');
+  c.width = 512; c.height = 112;
+  var x = c.getContext('2d');
+  color = color || '#5ff0d4';
+
+  x.clearRect(0, 0, 512, 112);
+
+  /* 背景 */
+  x.fillStyle = 'rgba(4,18,30,0.86)';
+  roundRect(x, 4, 12, 504, 88, 9);
+  x.fill();
+
+  /* 描边 */
+  x.strokeStyle = color;
+  x.globalAlpha = 0.85; x.lineWidth = 3;
+  roundRect(x, 4, 12, 504, 88, 9);
+  x.stroke();
+  x.globalAlpha = 1;
+
+  /* 左侧色条 */
+  x.fillStyle = color;
+  roundRect(x, 4, 12, 9, 88, 5);
+  x.fill();
+
+  /* 文字 */
+  x.font = 'bold 44px "Microsoft YaHei","PingFang SC",sans-serif';
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.fillStyle = color;
+  x.shadowColor = color;
+  x.shadowBlur = 10;
+  x.fillText(txt, 262, 58, 470);
+  x.shadowBlur = 0;
+
+  var t = new THREE.CanvasTexture(c);
+  t.minFilter = THREE.LinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = 4;
+
+  var m = new THREE.SpriteMaterial({ map:t, transparent:true, depthTest:false, depthWrite:false });
+  var s = new THREE.Sprite(m);
+  s.renderOrder = 60;
+  s.userData.isLbl = true;
+  return s;
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+/* ========================================================
+   8. UI
+   ======================================================== */
+function buildLabelsUI(){
+  /* 概览数值（按平面图测算） */
+  var baseArea = 0, gfa = 0, maxH = 0;
+  BLD.forEach(function(o){
+    var a = o.w * o.d;
+    baseArea += a; gfa += a * o.fl;
+    if (o.h > maxH) maxH = o.h;
+  });
+  var landArea = SITE_W * SITE_D;
+
+  document.getElementById('s1').innerHTML = fmt(landArea) + '<small>m²</small>';
+  document.getElementById('s2').innerHTML = fmt(baseArea) + '<small>m²</small>';
+  document.getElementById('s3').innerHTML = fmt(gfa) + '<small>m²</small>';
+  document.getElementById('s4').textContent = (gfa / landArea).toFixed(2);
+
+  document.getElementById('kArea').innerHTML = fmt(landArea) + '<small>m²</small>';
+  document.getElementById('kBld').innerHTML = BLD.length + ' 栋 <small>/</small> ' + maxH.toFixed(1) + 'm';
+
+  /* 楼栋列表 */
+  var host = document.getElementById('blist');
+  host.innerHTML = '';
+  BLD.forEach(function(o, i){
+    var d = document.createElement('div');
+    d.className = 'bc';
+    d.dataset.id = o.id;
+    d.innerHTML = '<div class="ix">' + (i + 1) + '</div>' +
+      '<div class="nm"><b>' + o.name + '</b><span>' + o.fl + 'F · ' + o.use + '</span></div>' +
+      '<div class="hh">' + o.h.toFixed(1) + 'm</div>';
+    d.addEventListener('click', function(){ selectBldg(o.id); });
+    host.appendChild(d);
+  });
+}
+
+function fmt(n){
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+/* ========================================================
+   现场实景照片
+   15 张现场实拍（已转 460px 缩略图 photos/t01..t15.jpg）。
+   用途：① 左栏图库，点开看大图；② 楼栋详情里配该楼对应实景。
+   照片是"证据"，不是装饰——立面配色、围栏形式、门头构造、
+   人行道铺装都是照着它们改的，用户能对照查看才有说服力。
+   ======================================================== */
+var PHOTO = [
+  { f:'t01', cap:'园区主路 · 沥青路面与白色标线' },
+  { f:'t02', cap:'环路弯道 · 黄色路缘线与草皮护坡' },
+  { f:'t03', cap:'西侧环路 · 蓝绿网状围栏与在建塔吊' },
+  { f:'t04', cap:'货车装卸区 · 灰色推拉雨棚' },
+  { f:'t05', cap:'钢结构雨棚内侧 · 白色桁架与立柱' },
+  { f:'t06', cap:'生产区主路 · 厂房与物流雨棚' },
+  { f:'t07', cap:'林荫道路 · 中央绿化带' },
+  { f:'t08', cap:'厂房侧立面 · 灰色推拉雨棚与绿化' },
+  { f:'t09', cap:'货运通道 · 蓝色叉车与成品堆放' },
+  { f:'t10', cap:'园区出入口 · 钢桁架门头与道闸' },
+  { f:'t11', cap:'路口 · 黄色网格禁停区与斜向斑马线' },
+  { f:'t12', cap:'人行道 · 红褐色砖铺装与建筑连廊' },
+  { f:'t13', cap:'南门外 · 临街立面与红色人行道' },
+  { f:'t14', cap:'园区内道路 · 建筑连廊与路缘石' },
+  { f:'t15', cap:'装卸雨棚 · 白色膜结构与货车' }
+];
+
+/* 每栋楼配 3 张最相关的实景（按实际拍摄内容对应） */
+var BLD_PHOTO = {
+  B1: ['t01', 't09', 't04'],
+  B2: ['t06', 't08', 't15'],
+  B3: ['t05', 't12', 't02'],
+  B4: ['t13', 't14', 't07']
+};
+
+function openLB(name, cap){
+  var lb = document.getElementById('lb');
+  var img = lb.querySelector('img');
+  var cc  = lb.querySelector('.cap2');
+  /* 大图用原图重一点也没关系：这里复用缩略图，保证 file:// 下必定能显示 */
+  img.src = 'photos/' + name + '.jpg';
+  cc.textContent = cap || '';
+  lb.classList.add('on');
+}
+
+function buildGalleryUI(){
+  var gal = document.getElementById('gal');
+  if (!gal) return;
+  var html = '';
+  PHOTO.forEach(function(p){
+    html += '<img src="photos/' + p.f + '.jpg" data-f="' + p.f + '" title="' + p.cap + '" alt="">';
+  });
+  gal.innerHTML = html;
+
+  gal.addEventListener('click', function(e){
+    var t = e.target;
+    if (t.tagName !== 'IMG') return;
+    var f = t.getAttribute('data-f');
+    var cap = '';
+    PHOTO.forEach(function(p){ if (p.f === f) cap = p.cap; });
+    openLB(f, cap);
+  });
+
+  var lb = document.getElementById('lb');
+  lb.addEventListener('click', function(){ lb.classList.remove('on'); });
+}
+
+function selectBldg(id){
+  var o = null;
+  for (var i = 0; i < BLD.length; i++) if (BLD[i].id === id) o = BLD[i];
+  if (!o) return;
+
+  selId = id;
+
+  /* 列表高亮 */
+  var cards = document.querySelectorAll('.bc');
+  for (var k = 0; k < cards.length; k++){
+    cards[k].classList.toggle('on', cards[k].dataset.id === id);
+  }
+
+  /* 右侧详情 */
+  var rows = '';
+  o.floors.forEach(function(f){
+    rows += '<div class="fr"><div class="fl">' + f.f + '</div>' +
+            '<div class="fn">' + f.n + '<em>' + f.e + '</em></div></div>';
+  });
+
+  var tags = '<span class="tg g">' + o.fire + '</span>' +
+             '<span class="tg">' + o.cat + '</span>' +
+             '<span class="tg y">' + o.fl + 'F</span>';
+
+  /* 配套实景（3 张） */
+  var phs = BLD_PHOTO[o.id] || [];
+  var phHtml = '';
+  if (phs.length){
+    phHtml = '<div class="stt">现场实景<s></s></div><div class="dph">';
+    phs.forEach(function(pf){
+      var cap = '';
+      PHOTO.forEach(function(p){ if (p.f === pf) cap = p.cap; });
+      phHtml += '<img src="photos/' + pf + '.jpg" data-f="' + pf + '" title="' + cap + '" alt="">';
+    });
+    phHtml += '</div>';
+  }
+
+  document.getElementById('dwrap').innerHTML =
+    '<div style="display:flex;align-items:baseline;gap:9px;margin-bottom:3px">' +
+      '<b style="font-size:17px;color:#5ff0d4;letter-spacing:1px">' + o.name + '</b>' +
+      '<span style="font-size:9.5px;letter-spacing:1.6px;color:rgba(120,196,224,.5)">' + o.en.toUpperCase() + '</span>' +
+    '</div>' +
+    '<div style="margin:8px 0 10px">' + tags + '</div>' +
+    phHtml +
+    '<div class="kv"><span class="k">建筑高度</span><span class="v">' + o.h.toFixed(1) + ' m</span></div>' +
+    '<div class="kv"><span class="k">地上层数</span><span class="v">' + o.fl + ' F</span></div>' +
+    '<div class="kv"><span class="k">标准层高</span><span class="v">' + (o.h / o.fl).toFixed(2) + ' m</span></div>' +
+    '<div class="kv"><span class="k">平面尺寸</span><span class="v">' + o.w.toFixed(1) + ' × ' + o.d.toFixed(1) + ' m</span></div>' +
+    '<div class="kv"><span class="k">单层面积</span><span class="v">' + fmt(o.w * o.d) + ' m²</span></div>' +
+    '<div class="kv"><span class="k">建筑面积</span><span class="v">' + fmt(o.w * o.d * o.fl) + ' m²</span></div>' +
+    '<div class="stt">楼层功能<s></s></div>' +
+    '<div class="fs">' + rows + '</div>';
+
+  /* 详情里的小图也能点开大图 */
+  var dp = document.querySelectorAll('#dwrap .dph img');
+  for (var q = 0; q < dp.length; q++){
+    dp[q].addEventListener('click', function(){
+      var f = this.getAttribute('data-f'), cap = '';
+      PHOTO.forEach(function(p){ if (p.f === f) cap = p.cap; });
+      openLB(f, cap);
+    });
+  }
+
+  focusOn(o);
+}
+
+function focusOn(o){
+  var g = bData[o.id];
+  if (!g) return;
+
+  /* 建筑世界坐标（root 已做 X 镜像，屏幕侧 x 取反） */
+  var wx = -o.cx, wz = o.cz;
+
+  var radius = Math.sqrt(o.w * o.w + o.d * o.d + o.h * o.h) / 2;
+  var dist = radius * 4.8;
+  dist = Math.max(dist, 85);
+  dist = Math.min(dist, 300);
+
+  /* 从园区中心指向该楼的外侧方向，保证视线不被邻栋遮挡 */
+  var dx = wx - 0, dz = wz - 0, hl = Math.sqrt(dx * dx + dz * dz);
+  if (hl < 4) { dx = 0.6; dz = 0.8; hl = 1; }
+  var ax = dx / hl, az = dz / hl;
+
+  var elev = 38 * Math.PI / 180;
+  var ty = Math.min(o.h * 0.40, o.h / 2);
+
+  var tx = wx, tz = wz;
+  var px = tx + ax * Math.cos(elev) * dist;
+  var pz = tz + az * Math.cos(elev) * dist;
+  var py = ty + Math.sin(elev) * dist;
+
+  animTo(new THREE.Vector3(px, py, pz), new THREE.Vector3(tx, ty, tz), 1100);
+}
+
+function animTo(p, t, ms){
+  anim = {
+    p0: cam.position.clone(), p1: p.clone(),
+    t0: ctrl.target.clone(), t1: t.clone(),
+    t: 0, d: ms || 900
+  };
+}
+
+function onResize(){
+  var W = window.innerWidth, H = window.innerHeight;
+  cam.aspect = W / H;
+  cam.updateProjectionMatrix();
+  ren.setSize(W, H);
+}
+
+/* ========================================================
+   9. 交互
+   ======================================================== */
+function pick(){
+  ray.setFromCamera(mouse, cam);
+  var hits = ray.intersectObjects(bMeshes, false);
+  return hits.length ? hits[0].object.userData : null;
+}
+
+function onMove(ev){
+  var r = ren.domElement.getBoundingClientRect();
+  mouse.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+  mouse.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+
+  var o = pick();
+  var tip = document.getElementById('tip');
+  if (o){
+    tip.style.display = 'block';
+    tip.style.left = (ev.clientX + 15) + 'px';
+    tip.style.top = (ev.clientY + 13) + 'px';
+    tip.innerHTML = '<b>' + o.name + '</b>　' + o.h.toFixed(1) + 'm · ' + o.fl + 'F';
+    ren.domElement.style.cursor = 'pointer';
+  } else {
+    tip.style.display = 'none';
+    ren.domElement.style.cursor = 'grab';
+  }
+}
+
+var downXY = [0, 0];
+function onDown(ev){
+  /* 只有左键才做拾取；中键（平移）和右键（平移）拖完不应误触发选中 */
+  if (ev.button !== 0) return;
+  downXY = [ev.clientX, ev.clientY];
+  var o = pick();
+  if (!o) return;
+  setTimeout(function(){
+    if (Math.abs(ev.clientX - downXY[0]) < 4 && Math.abs(ev.clientY - downXY[1]) < 4){
+      selectBldg(o.id);
+    }
+  }, 10);
+}
+
+/* 工具栏 */
+document.querySelectorAll('#tb .tb').forEach(function(b){
+  b.addEventListener('click', function(){
+    var l = b.dataset.l, v = b.dataset.v;
+
+    if (l){
+      lay[l] = !lay[l];
+      b.classList.toggle('on', lay[l]);
+      var map = { bldgs:'bldgs', paint:'paint', shed:'shed', props:'props', lbls:'lbls' };
+      if (map[l] && grp[map[l]]) grp[map[l]].visible = lay[l];
+      if (l === 'lbls'){
+        lblAll.forEach(function(s){ s.visible = lay.lbls; });
+      }
+      return;
+    }
+
+    if (v === 'iso'){
+      animTo(new THREE.Vector3(-104, 248, 164), new THREE.Vector3(8.6, 4, -14.1), 1000);
+    } else if (v === 'top'){
+      animTo(new THREE.Vector3(8.6, 252, -14.5), new THREE.Vector3(8.6, 0, -14.1), 1000);
+    } else if (v === 'reset'){
+      selId = null;
+      document.querySelectorAll('.bc').forEach(function(c){ c.classList.remove('on'); });
+      document.getElementById('dwrap').innerHTML =
+        '<div style="padding:26px 8px;text-align:center;font-size:11px;color:rgba(120,196,224,.46);' +
+        'letter-spacing:1px;line-height:1.9">点击左侧楼栋或场景中的建筑<br>查看楼层功能与建筑参数</div>';
+      animTo(new THREE.Vector3(-104, 248, 164), new THREE.Vector3(8.6, 4, -14.1), 1000);
+    }
+  });
+});
+
+/* ========================================================
+   10. 主循环
+   ======================================================== */
+function animate(){
+  requestAnimationFrame(animate);
+
+  var dt = clock.getDelta();
+
+  /* 相机缓动 */
+  if (anim){
+    anim.t += dt * 1000;
+    var e = Math.min(1, anim.t / anim.d);
+    e = e < 0.5 ? 4 * e * e * e : 1 - Math.pow(-2 * e + 2, 3) / 2;
+
+    cam.position.lerpVectors(anim.p0, anim.p1, e);
+    ctrl.target.lerpVectors(anim.t0, anim.t1, e);
+
+    if (anim.t >= anim.d) anim = null;
+  }
+
+  /* marker 呼吸 */
+  var tt = performance.now() * 0.001;
+  BLD.forEach(function(o, i){
+    var g = bData[o.id];
+    if (!g || !g.userData.marker) return;
+    var k = 1 + Math.sin(tt * 2.1 + i) * 0.16;
+    g.userData.marker.scale.setScalar(k);
+  });
+
+  /* 标签按距离缩放，防重叠 */
+  lblAll.forEach(function(s){
+    if (!s.userData.baseW) return;
+    var w = new THREE.Vector3();
+    s.getWorldPosition(w);
+    var dd = cam.position.distanceTo(w);
+    var k = Math.max(0.62, Math.min(1.0, dd / 165));
+    var bw = s.userData.baseW * k;
+    s.scale.set(bw, bw / 4.57, 1);
+  });
+
+  ctrl.update();
+  ren.render(sc, cam);
+}
+
+/* ========================================================
+   11. 时钟
+   ======================================================== */
+setInterval(function(){
+  var d = new Date();
+  function p(n){ return n < 10 ? '0' + n : '' + n; }
+  var el = document.getElementById('kClk');
+  if (el) el.textContent = p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}, 1000);
+
+/* ========================================================
+   启动
+   ======================================================== */
+try {
+  init();
+  window.DT = function(){
+    return {
+      cam: cam, ctrl: ctrl, sc: sc, ren: ren,
+      blds: BLD.length,
+      lbs: lblAll.length,
+      sel: selId,
+      /* 调试用：立刻终止相机缓动，避免截图前被 animTo 覆盖 */
+      stopAnim: function(){ anim = null; },
+      setView: function(px, py, pz, tx, ty, tz){
+        anim = null;
+        cam.position.set(px, py, pz);
+        ctrl.target.set(tx, ty, tz);
+        ctrl.update();
+      }
+    };
+  };
+  window.focusOn = function(id){ selectBldg(id); };
+} catch (ex){
+  fail(ex);
+}
+
+})();
+</script>
+</body>
+</html>

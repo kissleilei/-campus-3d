@@ -158,6 +158,18 @@ canvas{display:block}
   color:#6ff2da;border-color:rgba(0,229,192,.66);box-shadow:0 0 13px rgba(0,229,192,.26)}
 .tb .d{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.85}
 #tb .sep{width:1px;margin:4px 3px;background:rgba(0,229,192,.18)}
+/* ---------- ground annotation mode (m19706) ---------- */
+#annotBox{position:fixed;z-index:30;pointer-events:none;display:none;
+  border:2px solid #ffb020;background:rgba(255,176,32,.12);
+  box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+#annotPanel{position:fixed;right:16px;top:16px;z-index:30;display:none;
+  padding:10px 12px;border-radius:6px;
+  background:linear-gradient(180deg,rgba(9,24,38,.97),rgba(6,16,27,.97));
+  border:1px solid rgba(255,176,32,.5);box-shadow:0 8px 30px rgba(0,0,0,.7)}
+#annotPanel button{height:26px;padding:0 10px;border-radius:4px;cursor:pointer;
+  background:rgba(255,176,32,.18);border:1px solid rgba(255,176,32,.55);
+  color:#ffd48a;font-size:11px;font-family:inherit}
+#annotPanel button:hover{background:rgba(255,176,32,.32)}
 
 /* ---------- tooltip ---------- */
 #tip{position:fixed;z-index:20;pointer-events:none;display:none;padding:6px 10px;border-radius:4px;
@@ -265,6 +277,7 @@ canvas{display:block}
   <div class="tb" data-v="iso">等轴视角</div>
   <div class="tb" data-v="top">俯视</div>
   <div class="tb" data-v="reset">重置</div>
+  <div class="tb" data-v="annot">◎ 标注</div>
 </div>
 
 <div id="hint"><b>左键</b> 旋转　<b>中键</b> 水平平移　<b>右键</b> 平移　<b>滚轮</b> 缩放</div>
@@ -2353,6 +2366,7 @@ function pick(){
 }
 
 function onMove(ev){
+  if (annotMode){ annotMove(ev); return; }
   var r = ren.domElement.getBoundingClientRect();
   mouse.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
   mouse.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
@@ -2373,6 +2387,7 @@ function onMove(ev){
 
 var downXY = [0, 0];
 function onDown(ev){
+  if (annotMode){ annotDown(ev); return; }
   /* 只有左键才做拾取；中键（平移）和右键（平移）拖完不应误触发选中 */
   if (ev.button !== 0) return;
   downXY = [ev.clientX, ev.clientY];
@@ -2384,6 +2399,154 @@ function onDown(ev){
     }
   }, 10);
 }
+
+/* ========================================================
+   9b. 地面标注模式（m19706）：用户直接在 3D 场景拖框圈出要改的区域，
+       实时给出「局部坐标(贴图/生成器用的 local x,z)」和世界坐标。
+       坐标换算：root.scale.x=-1 → local x = -world x, local z = world z。
+       射线与 y=0 平面求交，不依赖图层可见性，斜视角也准。
+   ======================================================== */
+var annotMode = false, annotDrag = false;
+var annotStart = [0, 0], annotCur = [0, 0];
+var annotPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+var annotBoxEl = null, annotPanelEl = null, annot3D = null;
+var lastAnnot = null;
+
+function _annotDom(){
+  if (annotBoxEl) return;
+  annotBoxEl = document.createElement('div');
+  annotBoxEl.id = 'annotBox';
+  document.body.appendChild(annotBoxEl);
+  annotPanelEl = document.createElement('div');
+  annotPanelEl.id = 'annotPanel';
+  document.body.appendChild(annotPanelEl);
+}
+
+function screenToGround(cx, cy){
+  var r = ren.domElement.getBoundingClientRect();
+  var nx = ((cx - r.left) / r.width) * 2 - 1;
+  var ny = -((cy - r.top) / r.height) * 2 + 1;
+  var v = new THREE.Vector2(nx, ny);
+  ray.setFromCamera(v, cam);
+  var pt = new THREE.Vector3();
+  var hit = ray.ray.intersectPlane(annotPlane, pt);
+  return hit ? { wx: pt.x, wz: pt.z } : null;
+}
+
+function toLocal(g){ return { x: -g.wx, z: g.wz }; }
+
+function annotDown(ev){
+  if (ev.button !== 0) return;
+  annotDrag = true;
+  annotStart = [ev.clientX, ev.clientY];
+  annotCur = [ev.clientX, ev.clientY];
+  var b = annotBoxEl.style;
+  b.display = 'block';
+  b.left = ev.clientX + 'px'; b.top = ev.clientY + 'px';
+  b.width = '0px'; b.height = '0px';
+}
+
+function annotMove(ev){
+  annotCur = [ev.clientX, ev.clientY];
+  if (annotDrag){
+    var x0 = Math.min(annotStart[0], annotCur[0]), y0 = Math.min(annotStart[1], annotCur[1]);
+    var x1 = Math.max(annotStart[0], annotCur[0]), y1 = Math.max(annotStart[1], annotCur[1]);
+    var b = annotBoxEl.style;
+    b.left = x0 + 'px'; b.top = y0 + 'px';
+    b.width = (x1 - x0) + 'px'; b.height = (y1 - y0) + 'px';
+  }
+  var tip = document.getElementById('tip'); if (tip) tip.style.display = 'none';
+  ren.domElement.style.cursor = 'crosshair';
+}
+
+function annotUp(ev){
+  if (!annotDrag) return;
+  annotDrag = false;
+  annotBoxEl.style.display = 'none';
+  var a = screenToGround(annotStart[0], annotStart[1]);
+  var b = screenToGround(annotCur[0], annotCur[1]);
+  if (!a || !b) return;
+  var la = toLocal(a), lb = toLocal(b);
+  lastAnnot = {
+    x0: Math.min(la.x, lb.x), x1: Math.max(la.x, lb.x),
+    z0: Math.min(la.z, lb.z), z1: Math.max(la.z, lb.z)
+  };
+  lastAnnot.cx = (lastAnnot.x0 + lastAnnot.x1) / 2;
+  lastAnnot.cz = (lastAnnot.z0 + lastAnnot.z1) / 2;
+  lastAnnot.wx = -lastAnnot.cx; lastAnnot.wz = lastAnnot.cz;
+  drawAnnot3D();
+  showAnnotPanel();
+}
+
+function drawAnnot3D(){
+  if (annot3D){ sc.remove(annot3D); annot3D = null; }
+  if (!lastAnnot) return;
+  var a = lastAnnot;
+  var pts = [
+    new THREE.Vector3(-a.x0, 0.18, a.z0),
+    new THREE.Vector3(-a.x1, 0.18, a.z0),
+    new THREE.Vector3(-a.x1, 0.18, a.z1),
+    new THREE.Vector3(-a.x0, 0.18, a.z1)
+  ];
+  var g = new THREE.BufferGeometry().setFromPoints(pts.concat([pts[0]]));
+  var m = new THREE.LineBasicMaterial({ color: 0xffb020, depthTest: false, transparent: true, opacity: 0.95 });
+  annot3D = new THREE.Line(g, m);
+  annot3D.renderOrder = 999;
+  sc.add(annot3D);
+}
+
+function annotText(){
+  if (!lastAnnot) return '';
+  var a = lastAnnot;
+  var f = function(n){ return (n >= 0 ? '' : '-') + Math.abs(n).toFixed(2); };
+  return '\u3010\u5730\u9762\u6807\u6ce8\u3011\n' +
+    '\u5c40\u90e8\u5750\u6807(\u8d34\u56fe): x[' + f(a.x0) + ', ' + f(a.x1) + ']  z[' + f(a.z0) + ', ' + f(a.z1) + ']\n' +
+    '\u5c40\u90e8\u4e2d\u5fc3: x=' + f(a.cx) + '  z=' + f(a.cz) + '\n' +
+    '\u4e16\u754c\u5750\u6807(\u573a\u666f): x=' + f(a.wx) + '  z=' + f(a.wz);
+}
+
+function showAnnotPanel(){
+  var t = annotText();
+  annotPanelEl.innerHTML =
+    '<div style="font-size:11px;color:#6ff2da;margin-bottom:6px;letter-spacing:.5px">\u25ce \u5730\u9762\u6807\u6ce8\uff08\u62d6\u6846\u5b8c\u6210\uff09</div>' +
+    '<textarea id="annotTxt" readonly style="width:260px;height:74px;background:rgba(4,16,26,.9);' +
+    'border:1px solid rgba(0,229,192,.35);border-radius:4px;color:#cdeaf6;font-size:11px;' +
+    'font-family:Consolas,monospace;padding:6px;resize:none">' + t + '</textarea>' +
+    '<div style="display:flex;gap:6px;margin-top:6px">' +
+    '<button id="annotCopy">\u590d\u5236\u5750\u6807</button>' +
+    '<button id="annotClear">\u6e05\u9664</button></div>';
+  document.getElementById('annotCopy').onclick = function(){
+    var ta = document.getElementById('annotTxt');
+    ta.select();
+    try { document.execCommand('copy'); this.textContent = '\u5df2\u590d\u5236 \u2713'; } catch(e){}
+  };
+  document.getElementById('annotClear').onclick = function(){
+    if (annot3D){ sc.remove(annot3D); annot3D = null; }
+    lastAnnot = null;
+    annotPanelEl.style.display = 'none';
+  };
+  annotPanelEl.style.display = 'block';
+}
+
+function setAnnot(on){
+  annotMode = !!on;
+  var btn = document.querySelector('#tb [data-v="annot"]');
+  if (btn) btn.classList.toggle('on', annotMode);
+  ctrl.enableRotate = !annotMode;
+  _annotDom();
+  var hint = document.getElementById('hint');
+  if (!annotMode){
+    annotBoxEl.style.display = 'none';
+    annotPanelEl.style.display = 'none';
+    ren.domElement.style.cursor = 'grab';
+    if (hint) hint.innerHTML = '<b>\u5de6\u952e</b> \u65cb\u8f6c\u3000<b>\u4e2d\u952e</b> \u6c34\u5e73\u5e73\u79fb\u3000<b>\u53f3\u952e</b> \u5e73\u79fb\u3000<b>\u6eda\u8f6e</b> \u7f29\u653e';
+  } else {
+    ren.domElement.style.cursor = 'crosshair';
+    if (hint) hint.innerHTML = '<b>\u6807\u6ce8\u6a21\u5f0f</b>\uff1a\u5728\u5730\u9762\u6309\u4f4f\u5de6\u952e\u62d6\u6846\u5708\u51fa\u8981\u6539\u7684\u533a\u57df\uff0c\u677e\u5f00\u663e\u793a\u5750\u6807\u3000\u00b7\u3000\u518d\u70b9\u300c\u25ce \u6807\u6ce8\u300d\u9000\u51fa';
+  }
+}
+
+window.addEventListener('pointerup', function(ev){ if (annotMode) annotUp(ev); });
 
 /* 工具栏 */
 document.querySelectorAll('#tb .tb').forEach(function(b){
@@ -2401,6 +2564,10 @@ document.querySelectorAll('#tb .tb').forEach(function(b){
       return;
     }
 
+    if (v === 'annot'){
+      setAnnot(!annotMode);
+      return;
+    }
     if (v === 'iso'){
       animTo(new THREE.Vector3(-104, 248, 164), new THREE.Vector3(8.6, 4, -14.1), 1000);
     } else if (v === 'top'){
@@ -2483,6 +2650,20 @@ try {
       sel: selId,
       /* 调试用：立刻终止相机缓动，避免截图前被 animTo 覆盖 */
       stopAnim: function(){ anim = null; },
+      annot: {
+        enable: function(){ setAnnot(true); },
+        disable: function(){ setAnnot(false); },
+        pickGround: function(px, py){ return screenToGround(px, py); },
+        box: function(ax, ay, bx, by){
+          var a = screenToGround(ax, ay), b = screenToGround(bx, by);
+          if (!a || !b) return null;
+          var la = toLocal(a), lb = toLocal(b);
+          return { x0: Math.min(la.x, lb.x), x1: Math.max(la.x, lb.x),
+                   z0: Math.min(la.z, lb.z), z1: Math.max(la.z, lb.z),
+                   cx: (la.x + lb.x) / 2, cz: (la.z + lb.z) / 2 };
+        },
+        getText: function(){ return annotText(); }
+      },
       setView: function(px, py, pz, tx, ty, tz){
         anim = null;
         cam.position.set(px, py, pz);
